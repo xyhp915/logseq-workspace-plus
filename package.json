@@ -1,0 +1,43 @@
+{
+  "name": "logseq-workspace-plus",
+  "version": "0.0.0",
+  "description": "A Logseq plugin for workspace plus.",
+  "scripts": {
+    "dev": "parcel watch ./index.html --public-url ./ & ./node_modules/.bin/http-server ./dist",
+    "build": "parcel build ./index.html --public-url .",
+    "playground:vite": "vite ./playground"
+  },
+  "author": "charlie",
+  "license": "MIT",
+  "private": false,
+  "logseq": {
+    "main": "dist/index.html",
+    "id": "_logseq_workspace_plus"
+  },
+  "dependencies": {
+    "@logseq/libs": "0.0.17",
+    "immer": "^10.0.4",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "use-immer": "^0.9.0"
+  },
+  "alias": {
+    "react/jsx-dev-runtime": "./node_modules/react/jsx-dev-runtime.js",
+    "react/jsx-runtime": "./node_modules/react/jsx-runtime.js",
+    "react": "./src/react.js",
+    "react-dom": "./src/react-dom.js"
+  },
+  "devDependencies": {
+    "@types/react": "17.0.79",
+    "@types/react-dom": "17.0.9",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.19",
+    "http-server": "^14.1.1",
+    "parcel": "2.11.0",
+    "postcss": "^8.4.38",
+    "postcss-nesting": "^12.1.0",
+    "tailwindcss": "^3.4.1",
+    "vite": "^5.2.2",
+    "vitest": "^1.4.0"
+  }
+}
