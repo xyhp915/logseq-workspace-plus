@@ -16,7 +16,7 @@ type TileLayoutAttrs = {
 
 export const gridN = 64
 
-export function TileLayout(attrs: TileLayoutAttrs) {
+export function TileLayout (attrs: TileLayoutAttrs) {
   const span = attrs?.span
   const group = attrs?.group
   const direction = attrs?.direction ?? 'col'
@@ -39,7 +39,12 @@ export function TileLayout(attrs: TileLayoutAttrs) {
 
       {!childrenLen && (
         <div className={'flex-1'}>
-          <button data-action={'whoami'} className={'bg-blue-500 px-2 text-white'}>Find Me</button>
+          <span className={'grid grid-cols-2 grid-rows-2'}>
+            <button data-action={'left'} className={'px-2 text-white'}>⬅️</button>
+            <button data-action={'right'} className={'px-2 text-white'}>➡️</button>
+            <button data-action={'up'} className={'px-2 text-white'}>⬆️</button>
+            <button data-action={'down'} className={'px-2 text-white'}>⬇️</button>
+          </span>
         </div>
       )}
 
@@ -71,7 +76,7 @@ export function TileLayout(attrs: TileLayoutAttrs) {
   )
 }
 
-export function getTileDataWithTid(tid: string, draftData: any) {
+export function getTileDataWithTid (tid: string, draftData: any) {
   const indexes = tid.split('-').map(Number)?.slice(1)
   let ret = indexes.reduce(([value, refChildren, refParent], idx) => {
     return value.children ? [value.children[idx], value.children, value, idx] : [value, refChildren, refParent, idx]
@@ -79,30 +84,89 @@ export function getTileDataWithTid(tid: string, draftData: any) {
   return ret
 }
 
-export function resizeTileLeft(tid: string, draftData: any, step: number = 1) {
-  const [value, refChildren, _refParent, idx] = getTileDataWithTid(tid, draftData)
+const isNumber = (s: any) => typeof s === 'number'
+const isFlexibleSpan = (s: any) => (s === -1 || s.span === -1)
 
-  if (value?.span) {
-    value.span -= step
+export function resizeTileLeft (tid: string, draftData: any, step: number = 1) {
+  const [value, refChildren, refParent, idx] = getTileDataWithTid(tid, draftData)
+  const isInRows = refParent?.direction === 'row'
+
+  if (isInRows) return
+  if (isNumber(value)) refChildren[idx] = { span: value }
+  const valueRef = refChildren[idx]
+  const valueLeft = refChildren[idx - 1]
+  if (valueLeft && isNumber(valueLeft)) refChildren[idx - 1] = { span: valueLeft }
+  const valueLeftRef = valueLeft && refChildren[idx - 1]
+  const valueRight = refChildren[idx + 1]
+  if (valueRight && isNumber(valueRight)) refChildren[idx + 1] = { span: valueRight }
+  const valueRightRef = valueRight && refChildren[idx + 1]
+
+  if (valueLeft) {
+    valueLeftRef.span -= step
+    if (!isFlexibleSpan(valueRef)) valueRef.span += step
   } else {
-    refChildren[idx] = value - step
+    if (!isFlexibleSpan(valueRef)) valueRef.span -= step
+    if (!isFlexibleSpan(valueRight)) valueRightRef.span += step
   }
+
+  return draftData
 }
 
-export function resizeTileRight(tid: string, draftData: any) {}
+export function resizeTileRight (tid: string, draftData: any, step: number = 1) {
+  const [value, refChildren, refParent, idx] = getTileDataWithTid(tid, draftData)
+  const isInRows = refParent?.direction === 'row'
 
-export function resizeTileTop(tid: string, draftData: any) {}
+  if (isInRows) return
+  if (isNumber(value)) refChildren[idx] = { span: value }
+  const valueRef = refChildren[idx]
+  const valueLeft = refChildren[idx - 1]
+  if (valueLeft && isNumber(valueLeft)) refChildren[idx - 1] = { span: valueLeft }
+  const valueLeftRef = valueLeft && refChildren[idx - 1]
+  const valueRight = refChildren[idx + 1]
+  if (valueRight && isNumber(valueRight)) refChildren[idx + 1] = { span: valueRight }
+  const valueRightRef = valueRight && refChildren[idx + 1]
 
-export function resizeTileBottom(tid: string, draftData: any) {}
+  if (valueRight) {
+    if (!isFlexibleSpan(valueRef)) valueRef.span += step
+    if (!isFlexibleSpan(valueRight)) valueRightRef.span -= step
+  } else {
+    if (!isFlexibleSpan(valueRef)) valueRef.span -= step
+    if (valueLeft) valueLeftRef.span += step
+  }
 
-export function TileLayoutRoot() {
+  return draftData
+}
+
+export function resizeTileUp (tid: string, draftData: any) {}
+
+export function resizeTileDown (tid: string, draftData: any) {}
+
+export function insertTileStart (tid: string,
+  tile: Partial<TileLayoutAttrs>, draftData: any) {
+
+}
+
+export function insertTileAfter (tid: string,
+  tile: Partial<TileLayoutAttrs>, draftData: any) {
+
+}
+
+export function splitVertical (tid: string, draftData: any) {
+
+}
+
+export function splitHorizontal (tid: string, draftData: any) {
+
+}
+
+export function TileLayoutRoot () {
   const group = 'charlie-1'
   const [layoutData, setLayoutData] = useImmer<Partial<TileLayoutAttrs>>({
     direction: 'row',
     children: [
-      { span: 14, children: [16, { span: 22 }, 7, -1] },
-      { span: 17, children: [{ span: 20, direction: 'row', children: [21, -1] }, 10, 24, -1] },
-      // { span: 23, children: [12, 12, -1] },
+      { span: 24, children: [16, { span: 22 }, 7, -1] },
+      10,
+      { span: 23, children: [12, 12, -1] },
       { children: [23, 12, -1] }
     ]
   })
@@ -115,21 +179,19 @@ export function TileLayoutRoot() {
            const action = target.getAttribute('data-action')
            const tid = target.closest('.wp-tile-layout')?.getAttribute('data-key')
 
-           if (action === 'whoami') {
-             setLayoutData(draft => {
-               const [value, refChildren, refParent, idx] = getTileDataWithTid(tid, draft)
-               // alert(`${JSON.stringify(value, null, 2)}`)
-               console.log('refChildren', value, refParent, refChildren, idx)
+           switch (action) {
+             case 'left':
+               setLayoutData(draft => {
+                 return resizeTileLeft(tid, draft)
+               })
+             case 'right':
+               setLayoutData(draft => {
+                 return resizeTileRight(tid, draft)
+               })
 
-               if (value?.span) {
-                 ++value.span
-               } else {
-                 refChildren[idx] = value + 1
-               }
-
-               return draft
-             })
+             default:
            }
+
          }}
     >
       <TileLayout group={group} depth={0} index={0} {...layoutData}/>
