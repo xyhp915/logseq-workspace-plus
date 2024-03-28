@@ -1,5 +1,6 @@
 import './layout.css'
 import { useImmer } from 'use-immer'
+import { original } from 'immer'
 
 type Span = number
 type TileLayoutAttrs = {
@@ -77,29 +78,42 @@ export function TileLayout (attrs: TileLayoutAttrs) {
 }
 
 export function getTileDataWithTid (tid: string, draftData: any) {
+  // remove root index
   const indexes = tid.split('-').map(Number)?.slice(1)
-  let ret = indexes.reduce(([value, refChildren, refParent], idx) => {
+  const ret = indexes.reduce(([value, refChildren, refParent], idx) => {
     return value.children ? [value.children[idx], value.children, value, idx] : [value, refChildren, refParent, idx]
-  }, [draftData])
+  }, [draftData, false, false, 0])
+
+  ret.push(tid)
   return ret
 }
 
 const isNumber = (s: any) => typeof s === 'number'
-const isFlexibleSpan = (s: any) => (s === -1 || s.span === -1)
+const isObject = (obj: any) => { return typeof obj === 'object' && obj !== null && !Array.isArray(obj)}
+const isFlexibleSpan = (s: any) => (!s || s === -1 || s.span === -1 || (isObject(s) && s.span == undefined))
+const parseParentTid = (s: string) => s?.replace(/-\d+$/, '')
 
-export function resizeTileLeft (tid: string, draftData: any, step: number = 1) {
-  const [value, refChildren, refParent, idx] = getTileDataWithTid(tid, draftData)
-  const isInRows = refParent?.direction === 'row'
+type RawTileData = number | { span: number, children?: Array<RawTileData> }
+type RawTileDataProxy = { span: number, children?: Array<RawTileData> }
+type IndexedTileData = {
+  idx: number,
+  value: RawTileData,
+  refChildren?: Array<RawTileData>,
+  refParent?: RawTileData
+}
 
-  if (isInRows) return
-  if (isNumber(value)) refChildren[idx] = { span: value }
-  const valueRef = refChildren[idx]
+function resizeTilePrevSibling (
+  { idx, refChildren, }: IndexedTileData,
+  draftData: any,
+  step = 1
+) {
+  const valueRef = refChildren[idx] as RawTileDataProxy
   const valueLeft = refChildren[idx - 1]
-  if (valueLeft && isNumber(valueLeft)) refChildren[idx - 1] = { span: valueLeft }
-  const valueLeftRef = valueLeft && refChildren[idx - 1]
+  if (valueLeft && isNumber(valueLeft)) refChildren[idx - 1] = { span: valueLeft as number }
+  const valueLeftRef = valueLeft && refChildren[idx - 1] as RawTileDataProxy
   const valueRight = refChildren[idx + 1]
-  if (valueRight && isNumber(valueRight)) refChildren[idx + 1] = { span: valueRight }
-  const valueRightRef = valueRight && refChildren[idx + 1]
+  if (valueRight && isNumber(valueRight)) refChildren[idx + 1] = { span: valueRight as number }
+  const valueRightRef = valueRight && refChildren[idx + 1] as RawTileDataProxy
 
   if (valueLeft) {
     valueLeftRef.span -= step
@@ -112,19 +126,36 @@ export function resizeTileLeft (tid: string, draftData: any, step: number = 1) {
   return draftData
 }
 
-export function resizeTileRight (tid: string, draftData: any, step: number = 1) {
+export function resizeTileLeft (tid: string, draftData: any, step: number = 1) {
   const [value, refChildren, refParent, idx] = getTileDataWithTid(tid, draftData)
   const isInRows = refParent?.direction === 'row'
 
-  if (isInRows) return
+  if (isInRows) {
+    const parentTid = parseParentTid(tid)
+    if (!parentTid) return
+    return resizeTileLeft(parentTid, draftData, step)
+  }
+
   if (isNumber(value)) refChildren[idx] = { span: value }
-  const valueRef = refChildren[idx]
+
+  return resizeTilePrevSibling(
+    { idx, value, refChildren, refParent },
+    draftData,
+    step)
+}
+
+function resizeTileNextSibling (
+  { idx, refChildren }: IndexedTileData,
+  draftData: any,
+  step = 1
+) {
+  const valueRef = refChildren[idx] as RawTileDataProxy
   const valueLeft = refChildren[idx - 1]
-  if (valueLeft && isNumber(valueLeft)) refChildren[idx - 1] = { span: valueLeft }
-  const valueLeftRef = valueLeft && refChildren[idx - 1]
+  if (valueLeft && isNumber(valueLeft)) refChildren[idx - 1] = { span: valueLeft as number }
+  const valueLeftRef = valueLeft && refChildren[idx - 1] as RawTileDataProxy
   const valueRight = refChildren[idx + 1]
-  if (valueRight && isNumber(valueRight)) refChildren[idx + 1] = { span: valueRight }
-  const valueRightRef = valueRight && refChildren[idx + 1]
+  if (valueRight && isNumber(valueRight)) refChildren[idx + 1] = { span: valueRight as number }
+  const valueRightRef = valueRight && refChildren[idx + 1] as RawTileDataProxy
 
   if (valueRight) {
     if (!isFlexibleSpan(valueRef)) valueRef.span += step
@@ -135,6 +166,18 @@ export function resizeTileRight (tid: string, draftData: any, step: number = 1) 
   }
 
   return draftData
+}
+
+export function resizeTileRight (tid: string, draftData: any, step: number = 1) {
+  const [value, refChildren, refParent, idx] = getTileDataWithTid(tid, draftData)
+  const isInRows = refParent?.direction === 'row'
+
+  if (isInRows) return
+  if (isNumber(value)) refChildren[idx] = { span: value }
+
+  return resizeTileNextSibling(
+    { idx, value, refChildren, refParent },
+    draftData, step)
 }
 
 export function resizeTileUp (tid: string, draftData: any) {}
@@ -161,15 +204,17 @@ export function splitHorizontal (tid: string, draftData: any) {
 
 export function TileLayoutRoot () {
   const group = 'charlie-1'
-  const [layoutData, setLayoutData] = useImmer<Partial<TileLayoutAttrs>>({
-    direction: 'row',
-    children: [
-      { span: 24, children: [16, { span: 22 }, 7, -1] },
-      10,
-      { span: 23, children: [12, 12, -1] },
-      { children: [23, 12, -1] }
-    ]
-  })
+  const [layoutData, setLayoutData] = useImmer<Partial<TileLayoutAttrs>>(
+    {
+      direction: 'row',
+      children: [
+        { span: 24, children: [16, { span: 22 }, 7, -1] },
+        10,
+        { span: 23, children: [12, 12, { span: 12, direction: 'row', children: [32, 32] }, -1] },
+        { children: [23, 12, -1] }
+      ]
+    }
+  )
 
   return (
     <div className={'wp-tile-layout-root'}
@@ -181,15 +226,16 @@ export function TileLayoutRoot () {
 
            switch (action) {
              case 'left':
-               setLayoutData(draft => {
+               return setLayoutData(draft => {
                  return resizeTileLeft(tid, draft)
                })
              case 'right':
-               setLayoutData(draft => {
+               return setLayoutData(draft => {
                  return resizeTileRight(tid, draft)
                })
 
              default:
+
            }
 
          }}

@@ -2,20 +2,20 @@ import { test, expect } from 'vitest'
 import { getTileDataWithTid, resizeTileLeft, resizeTileRight } from './Layout'
 import { produce } from 'immer'
 
-const draftData: any = {
-  direction: 'row',
-  children: [
-    { span: 24, children: [16, { span: 22 }, 7, -1] },
-    10,
-    { span: 23, children: [12, 12, -1] },
-    { children: [23, 12, -1] }
-  ]
-}
+test('tile layout apis 1', async () => {
+  const draftData: any = {
+    direction: 'row',
+    children: [
+      { span: 24, children: [16, { span: 22 }, 7, -1] },
+      10,
+      { span: 23, children: [12, 12, 8, { span: 12, direction: 'row', children: [32, 32] }, -1] },
+      { children: [23, 12, -1] }
+    ]
+  }
 
-test('tile layout apis', async () => {
-  expect(getTileDataWithTid('0-0-1', draftData)).toEqual([{ span: 22 }, draftData.children[0].children, draftData.children[0], 1])
-  expect(getTileDataWithTid('0-1', draftData)).toEqual([10, draftData.children, draftData, 1])
-  expect(getTileDataWithTid('0-2-1', draftData)).toEqual([12, draftData.children[2].children, draftData.children[2], 1])
+  expect(getTileDataWithTid('0-0-1', draftData)).toEqual([{ span: 22 }, draftData.children[0].children, draftData.children[0], 1, '0-0-1'])
+  expect(getTileDataWithTid('0-1', draftData)).toEqual([10, draftData.children, draftData, 1, '0-1'])
+  expect(getTileDataWithTid('0-2-1', draftData)).toEqual([12, draftData.children[2].children, draftData.children[2], 1, '0-2-1'])
 
   // resizeTileLeft
   const resizedLeftState: any = produce(draftData, draft => {
@@ -23,6 +23,7 @@ test('tile layout apis', async () => {
     resizeTileLeft('0-1', draft)
     resizeTileLeft('0-2-0', draft)
     resizeTileLeft('0-3-2', draft)
+    resizeTileLeft('0-2-3-0', draft)
   })
 
   expect(resizedLeftState.children[0].children[0].span).toBe(15)
@@ -32,6 +33,8 @@ test('tile layout apis', async () => {
   expect(resizedLeftState.children[2].children[1].span).toBe(13)
   expect(resizedLeftState.children[3].children[1]).toEqual({ span: 11 })
   expect(resizedLeftState.children[3].children[2]).toEqual({ span: -1 })
+  expect(resizedLeftState.children[2].children[2].span).toBe(7)
+  expect(resizedLeftState.children[2].children[3].span).toBe(13)
 
   // resizeTileLeft
   const resizedRightState: any = produce(draftData, draft => {
@@ -45,4 +48,16 @@ test('tile layout apis', async () => {
   expect(resizedRightState.children[1]).toBe(10)
   expect(resizedRightState.children[3].children[2]).toEqual({ span: -1 })
   expect(resizedRightState.children[3].children[1]).toEqual({ span: 13 })
+})
+
+test('tile layout apis 2', async () => {
+  const draftData: any = {
+    direction: 'row',
+    children: [
+      { span: 24, children: [16, { span: 22 }, 7, -1] },
+      10,
+      { span: 23, children: [12, 12, -1] },
+      { children: [23, 12, -1] }
+    ]
+  }
 })
