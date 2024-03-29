@@ -41,6 +41,7 @@ test('tile layout apis 1', async () => {
     resizeTileRight('0-0-1', draft)
     resizeTileRight('0-1', draft)
     resizeTileRight('0-3-2', draft)
+    resizeTileRight('0-2-3-0', draft)
   })
 
   expect(resizedRightState.children[0].children[1]).toEqual({ span: 23 })
@@ -48,6 +49,8 @@ test('tile layout apis 1', async () => {
   expect(resizedRightState.children[1]).toBe(10)
   expect(resizedRightState.children[3].children[2]).toEqual({ span: -1 })
   expect(resizedRightState.children[3].children[1]).toEqual({ span: 13 })
+  expect(resizedRightState.children[2].children[3].span).toEqual(13)
+  expect(resizedRightState.children[2].children[4].span).toEqual(-1)
 })
 
 test('tile layout apis 2', async () => {

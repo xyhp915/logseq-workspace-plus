@@ -172,7 +172,12 @@ export function resizeTileRight (tid: string, draftData: any, step: number = 1) 
   const [value, refChildren, refParent, idx] = getTileDataWithTid(tid, draftData)
   const isInRows = refParent?.direction === 'row'
 
-  if (isInRows) return
+  if (isInRows) {
+    const parentTid = parseParentTid(tid)
+    if (!parentTid) return
+    return resizeTileRight(parentTid, draftData, step)
+  }
+
   if (isNumber(value)) refChildren[idx] = { span: value }
 
   return resizeTileNextSibling(
@@ -210,7 +215,9 @@ export function TileLayoutRoot () {
       children: [
         { span: 24, children: [16, { span: 22 }, 7, -1] },
         10,
-        { span: 23, children: [12, 12, { span: 12, direction: 'row', children: [32, 32] }, -1] },
+        { span: 23, children:
+            [12, 12, 8,
+              { span: 12, direction: 'row', children: [32, 32] }, -1] },
         { children: [23, 12, -1] }
       ]
     }
