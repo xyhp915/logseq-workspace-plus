@@ -1,6 +1,7 @@
 import './layout.css'
 import { useImmer } from 'use-immer'
 import { original } from 'immer'
+import { FC, FunctionComponent, useCallback, useState } from 'react'
 
 type Span = number
 type TileLayoutAttrs = {
@@ -12,6 +13,7 @@ type TileLayoutAttrs = {
   span?: Span,
   children?: Array<Span | Partial<TileLayoutAttrs>>,
   parent?: TileLayoutAttrs
+  views?: Record<string, FC<any>>
   card?: any
 }
 
@@ -26,6 +28,7 @@ export function TileLayout (attrs: TileLayoutAttrs) {
   const childrenLen = attrs?.children?.length
   const spanClass = parent?.direction ? `${parent?.direction}-span-${span}` : ''
   const gridClass = !childrenLen ? 'flex justify-center items-center' : `grid-${direction}s-${gridN}`
+  const View = tid && attrs.views?.[tid]
   let childrenSpanAcc = 0
 
   return (
@@ -37,6 +40,13 @@ export function TileLayout (attrs: TileLayoutAttrs) {
       <b className={'absolute bg-amber-500 text-white p-2 top-2 left-2'}>
         {tid} ({span})
       </b>
+
+      {/* card view */}
+      {!childrenLen && View && (
+        <div className={'card-view absolute top-32 left-16 p-4 bg-green-600 text-white rounded'}>
+          <View />
+        </div>
+      )}
 
       {!childrenLen && (
         <div className={'flex-1'}>
@@ -65,6 +75,7 @@ export function TileLayout (attrs: TileLayoutAttrs) {
 
           props.children = (child as TileLayoutAttrs).children
           props.parent = { ...attrs, direction }
+          props.views = attrs.views
 
           childrenSpanAcc += props.span
 
@@ -185,7 +196,22 @@ export function resizeTileRight (tid: string, draftData: any, step: number = 1) 
     draftData, step)
 }
 
-export function resizeTileUp (tid: string, draftData: any) {}
+export function resizeTileUp (tid: string, draftData: any, step: number = 1) {
+  const [value, refChildren, refParent, idx] = getTileDataWithTid(tid, draftData)
+  const isInCols = refParent?.direction !== 'row'
+
+  if (isInCols) {
+    const parentTid = parseParentTid(tid)
+    if (!parentTid) return
+    return resizeTileUp(parentTid, draftData, step)
+  }
+
+  if (isNumber(value)) refChildren[idx] = { span: value }
+
+  return resizeTilePrevSibling(
+    { idx, value, refChildren, refParent },
+    draftData, step)
+}
 
 export function resizeTileDown (tid: string, draftData: any) {}
 
@@ -213,15 +239,22 @@ export function TileLayoutRoot () {
     {
       direction: 'row',
       children: [
-        { span: 24, children: [16, { span: 22 }, 7, -1] },
+        {
+          span: 24,
+          children: [16, { span: 22 }, 7, -1]
+        },
         10,
-        { span: 23, children:
-            [12, 12, 8,
-              { span: 12, direction: 'row', children: [32, 32] }, -1] },
+        {
+          span: 23,
+          children: [12, 12, 8, { span: 12, direction: 'row', children: [32, 32] }, -1]
+        },
         { children: [23, 12, -1] }
       ]
     }
   )
+
+  const [views, setViews] =
+    useState<{ [tid: string]: FunctionComponent<any> }>({'0-0-1': () => <h2>Hi, Card View!</h2>})
 
   return (
     <div className={'wp-tile-layout-root'}
@@ -240,6 +273,10 @@ export function TileLayoutRoot () {
                return setLayoutData(draft => {
                  return resizeTileRight(tid, draft)
                })
+             case 'up':
+               return setLayoutData(draft => {
+                 return resizeTileUp(tid, draft)
+               })
 
              default:
 
@@ -247,7 +284,7 @@ export function TileLayoutRoot () {
 
          }}
     >
-      <TileLayout group={group} depth={0} index={0} {...layoutData}/>
+      <TileLayout group={group} depth={0} index={0} views={views} {...layoutData}/>
     </div>
   )
 }

@@ -36,7 +36,7 @@ test('tile layout apis 1', async () => {
   expect(resizedLeftState.children[2].children[2].span).toBe(7)
   expect(resizedLeftState.children[2].children[3].span).toBe(13)
 
-  // resizeTileLeft
+  // resizeTileRight
   const resizedRightState: any = produce(draftData, draft => {
     resizeTileRight('0-0-1', draft)
     resizeTileRight('0-1', draft)
@@ -51,16 +51,11 @@ test('tile layout apis 1', async () => {
   expect(resizedRightState.children[3].children[1]).toEqual({ span: 13 })
   expect(resizedRightState.children[2].children[3].span).toEqual(13)
   expect(resizedRightState.children[2].children[4].span).toEqual(-1)
+
+  // resizeTileUp
+
+  // resizeTileDown
 })
 
 test('tile layout apis 2', async () => {
-  const draftData: any = {
-    direction: 'row',
-    children: [
-      { span: 24, children: [16, { span: 22 }, 7, -1] },
-      10,
-      { span: 23, children: [12, 12, -1] },
-      { children: [23, 12, -1] }
-    ]
-  }
 })
