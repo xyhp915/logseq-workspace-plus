@@ -107,9 +107,10 @@ export function parseTileDataWithTkey(tkey: string, draftData: any) {
   return ret
 }
 
+const FlexSpan = -1
 const isNumber = (s: any) => typeof s === 'number'
 const isObject = (obj: any) => { return typeof obj === 'object' && obj !== null && !Array.isArray(obj)}
-const isFlexibleSpan = (s: any) => (!s || s === -1 || s.span === -1 || (isObject(s) && s.span == undefined))
+const isFlexibleSpan = (s: any) => (!s || s === FlexSpan || s.span === FlexSpan || (isObject(s) && s.span == undefined))
 const parseParentTkey = (s: string) => s?.replace(/-\d+$/, '')
 
 type RawTileData = number | ({ span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>)
@@ -259,9 +260,13 @@ export function removeTile(tkey: string, draftData: any) {
   const nextSiblingRef = refChildren[idx + 1]
 
   if (prevSiblingRef && !isNumber(prevSiblingRef)) {
-    prevSiblingRef.span += value.span
+    if (value.span === FlexSpan) {
+      prevSiblingRef.span = FlexSpan
+    } else {
+      prevSiblingRef.span += value.span
+    }
   } else if (nextSiblingRef && !isNumber(nextSiblingRef)
-    && nextSiblingRef.span !== -1) {
+    && nextSiblingRef.span !== FlexSpan) {
     nextSiblingRef.span += value.span
   }
 
@@ -318,11 +323,16 @@ function MovementObserver(
         }
 
         if (prevSiblingRef) {
-          if (prevSiblingRef.children?.length) {
-            return prevSiblingRef.children[0]
+          const pickValidTile = (tile: any) => {
+            if (!tile.children?.length) {
+              return tile
+            }
+
+            // TODO: root original index
+            return pickValidTile(tile.children[0])
           }
 
-          return prevSiblingRef
+          return pickValidTile(prevSiblingRef)
         }
       }
 
