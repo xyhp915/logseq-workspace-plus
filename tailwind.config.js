@@ -19,13 +19,13 @@ export default {
         '64': 'repeat(64, minmax(0, 1fr))',
       },
 
-      gridRow: Array.from({ length: 52 }).reduce((r, _, i) => {
+      gridRow: Array.from({ length: 64 - 12 }).reduce((r, _, i) => {
         const k = 12 + i + 1
         r[`span-${k}`] = `span ${k} / span ${k}`
         return r
       }, {}),
 
-      gridColumn: Array.from({ length: 52 }).reduce((r, _, i) => {
+      gridColumn: Array.from({ length: 64 - 12 }).reduce((r, _, i) => {
         const k = 12 + i + 1
         r[`span-${k}`] = `span ${k} / span ${k}`
         return r

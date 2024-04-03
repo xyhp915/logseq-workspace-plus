@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest'
-import { parseTileDataWithTid, resizeTileLeft, resizeTileRight } from './Layout'
+import { parseTileDataWithTkey, resizeTileLeft, resizeTileRight } from './Layout'
 import { produce } from 'immer'
 
 test('tile layout apis 1', async () => {
@@ -13,9 +13,9 @@ test('tile layout apis 1', async () => {
     ]
   }
 
-  expect(parseTileDataWithTid('0-0-1', draftData)).toEqual([{ span: 22 }, draftData.children[0].children, draftData.children[0], 1, '0-0-1'])
-  expect(parseTileDataWithTid('0-1', draftData)).toEqual([10, draftData.children, draftData, 1, '0-1'])
-  expect(parseTileDataWithTid('0-2-1', draftData)).toEqual([12, draftData.children[2].children, draftData.children[2], 1, '0-2-1'])
+  expect(parseTileDataWithTkey('0-0-1', draftData)).toEqual([{ span: 22 }, draftData.children[0].children, draftData.children[0], 1, '0-0-1'])
+  expect(parseTileDataWithTkey('0-1', draftData)).toEqual([10, draftData.children, draftData, 1, '0-1'])
+  expect(parseTileDataWithTkey('0-2-1', draftData)).toEqual([12, draftData.children[2].children, draftData.children[2], 1, '0-2-1'])
 
   // resizeTileLeft
   const resizedLeftState: any = produce(draftData, draft => {

@@ -1,6 +1,6 @@
 import './layout.css'
 import { useImmer } from 'use-immer'
-import { FC, FunctionComponent, useCallback, useState } from 'react'
+import { FC, FunctionComponent, useCallback, useEffect, useState } from 'react'
 import uniqid from 'uniqid'
 
 type Span = number
@@ -9,7 +9,7 @@ type TileLayoutAttrs = {
   depth: number,
   index: number,
   id?: string,
-  tid?: string,
+  tkey?: string,
   direction?: 'row' | 'col',
   span?: Span,
   children?: Array<Span | Partial<TileLayoutAttrs>>,
@@ -24,23 +24,24 @@ export function TileLayout(attrs: TileLayoutAttrs) {
   const span = attrs?.span
   const group = attrs?.group
   const direction = attrs?.direction ?? 'col'
-  const id = attrs?.id
-  const tid = attrs?.tid ?? 0
+  const id = attrs?.id || uniqid()
+  const tkey = attrs?.tkey ?? 0
   const parent = attrs?.parent
   const childrenLen = attrs?.children?.length
   const spanClass = parent?.direction ? `${parent?.direction}-span-${span}` : ''
   const gridClass = !childrenLen ? 'flex justify-center items-center' : `grid-${direction}s-${gridN}`
-  const View = attrs.views?.[id] || attrs.views?.[tid]
+  const View = attrs.views?.[id] || attrs.views?.[tkey]
   let childrenSpanAcc = 0
 
   return (
     <div className={`wp-tile-layout ${gridClass} ${spanClass} as-${direction}`}
          data-group={group}
-         data-key={tid}
+         data-key={tkey}
+         id={id}
          tabIndex={0}
     >
       <b className={'absolute bg-amber-500 text-white p-2 top-2 left-2 text-sm'}>
-        {tid} ({span}, {id})
+        {tkey} ({span}, {id})
       </b>
 
       {/* card view */}
@@ -68,7 +69,7 @@ export function TileLayout(attrs: TileLayoutAttrs) {
 
       {attrs.children?.map((child, index) => {
           let props: TileLayoutAttrs =
-            { depth: attrs.depth + 1, tid: `${tid}-${index}`, index, group }
+            { depth: attrs.depth + 1, tkey: `${tkey}-${index}`, index, group }
 
           if (typeof child === 'number') {
             props.span = child
@@ -95,21 +96,21 @@ export function TileLayout(attrs: TileLayoutAttrs) {
   )
 }
 
-export function parseTileDataWithTid(tid: string, draftData: any) {
+export function parseTileDataWithTkey(tkey: string, draftData: any) {
   // remove root index
-  const indexes = tid.split('-').map(Number)?.slice(1)
+  const indexes = tkey.split('-').map(Number)?.slice(1)
   const ret = indexes.reduce(([value, refChildren, refParent], idx) => {
     return value.children ? [value.children[idx], value.children, value, idx] : [value, refChildren, refParent, idx]
   }, [draftData, false, false, 0])
 
-  ret.push(tid)
+  ret.push(tkey)
   return ret
 }
 
 const isNumber = (s: any) => typeof s === 'number'
 const isObject = (obj: any) => { return typeof obj === 'object' && obj !== null && !Array.isArray(obj)}
 const isFlexibleSpan = (s: any) => (!s || s === -1 || s.span === -1 || (isObject(s) && s.span == undefined))
-const parseParentTid = (s: string) => s?.replace(/-\d+$/, '')
+const parseParentTkey = (s: string) => s?.replace(/-\d+$/, '')
 
 type RawTileData = number | ({ span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>)
 type RawTileDataProxy = { span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>
@@ -144,14 +145,14 @@ function resizeTilePrevSibling(
   return draftData
 }
 
-export function resizeTileLeft(tid: string, draftData: any, step: number = 1) {
-  const [value, refChildren, refParent, idx] = parseTileDataWithTid(tid, draftData)
+export function resizeTileLeft(tkey: string, draftData: any, step: number = 1) {
+  const [value, refChildren, refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   const isInRows = refParent?.direction === 'row'
 
   if (isInRows) {
-    const parentTid = parseParentTid(tid)
-    if (!parentTid) return
-    return resizeTileLeft(parentTid, draftData, step)
+    const parentTkey = parseParentTkey(tkey)
+    if (!parentTkey) return
+    return resizeTileLeft(parentTkey, draftData, step)
   }
 
   if (isNumber(value)) refChildren[idx] = { span: value }
@@ -186,14 +187,14 @@ function resizeTileNextSibling(
   return draftData
 }
 
-export function resizeTileRight(tid: string, draftData: any, step: number = 1) {
-  const [value, refChildren, refParent, idx] = parseTileDataWithTid(tid, draftData)
+export function resizeTileRight(tkey: string, draftData: any, step: number = 1) {
+  const [value, refChildren, refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   const isInRows = refParent?.direction === 'row'
 
   if (isInRows) {
-    const parentTid = parseParentTid(tid)
-    if (!parentTid) return
-    return resizeTileRight(parentTid, draftData, step)
+    const parentTkey = parseParentTkey(tkey)
+    if (!parentTkey) return
+    return resizeTileRight(parentTkey, draftData, step)
   }
 
   if (isNumber(value)) refChildren[idx] = { span: value }
@@ -203,14 +204,14 @@ export function resizeTileRight(tid: string, draftData: any, step: number = 1) {
     draftData, step)
 }
 
-export function resizeTileUp(tid: string, draftData: any, step: number = 1) {
-  const [value, refChildren, refParent, idx] = parseTileDataWithTid(tid, draftData)
+export function resizeTileUp(tkey: string, draftData: any, step: number = 1) {
+  const [value, refChildren, refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   const isInCols = refParent?.direction !== 'row'
 
   if (isInCols) {
-    const parentTid = parseParentTid(tid)
-    if (!parentTid) return
-    return resizeTileUp(parentTid, draftData, step)
+    const parentTkey = parseParentTkey(tkey)
+    if (!parentTkey) return
+    return resizeTileUp(parentTkey, draftData, step)
   }
 
   if (isNumber(value)) refChildren[idx] = { span: value }
@@ -220,14 +221,14 @@ export function resizeTileUp(tid: string, draftData: any, step: number = 1) {
     draftData, step)
 }
 
-export function resizeTileDown(tid: string, draftData: any) {
-  const [value, refChildren, refParent, idx] = parseTileDataWithTid(tid, draftData)
+export function resizeTileDown(tkey: string, draftData: any) {
+  const [value, refChildren, refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   const isInCols = refParent?.direction !== 'row'
 
   if (isInCols) {
-    const parentTid = parseParentTid(tid)
-    if (!parentTid) return
-    return resizeTileDown(parentTid, draftData)
+    const parentTkey = parseParentTkey(tkey)
+    if (!parentTkey) return
+    return resizeTileDown(parentTkey, draftData)
   }
 
   if (isNumber(value)) refChildren[idx] = { span: value }
@@ -237,23 +238,23 @@ export function resizeTileDown(tid: string, draftData: any) {
     draftData)
 }
 
-export function splitVertical(tid: string, draftData: any) {
-  const [value, refChildren, _refParent, idx] = parseTileDataWithTid(tid, draftData)
+export function splitVertical(tkey: string, draftData: any) {
+  const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   if (isNumber(value)) refChildren[idx] = { span: value, id: uniqid() }
   refChildren[idx].children = [{ span: gridN / 2, id: uniqid(), }, { span: gridN / 2, id: uniqid() }]
   return draftData
 }
 
-export function splitHorizontal(tid: string, draftData: any) {
-  const [value, refChildren, _refParent, idx] = parseTileDataWithTid(tid, draftData)
+export function splitHorizontal(tkey: string, draftData: any) {
+  const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   if (isNumber(value)) refChildren[idx] = { span: value, id: uniqid() }
   refChildren[idx].direction = 'row'
   refChildren[idx].children = [{ span: gridN / 2, id: uniqid() }, { span: gridN / 2, id: uniqid() }]
   return draftData
 }
 
-export function removeTile(tid: string, draftData: any) {
-  const [value, refChildren, _refParent, idx] = parseTileDataWithTid(tid, draftData)
+export function removeTile(tkey: string, draftData: any) {
+  const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   const prevSiblingRef = refChildren[idx - 1]
   const nextSiblingRef = refChildren[idx + 1]
 
@@ -265,6 +266,11 @@ export function removeTile(tid: string, draftData: any) {
   }
 
   refChildren.splice(idx, 1)
+
+  if (refChildren.length === 0) {
+    removeTile(parseParentTkey(tkey), draftData)
+  }
+
   return draftData
 }
 
@@ -282,6 +288,100 @@ function inflateTileData(root: Partial<TileLayoutAttrs>) {
       return inflateTileData(child as Partial<TileLayoutAttrs>)
     })
   }
+}
+
+function MovementObserver(
+  props: { group: string, layoutData: Partial<TileLayoutAttrs> }
+) {
+  useEffect(() => {
+    const groupContainer = document.getElementById(`lsp-wp-${props.group}`)
+    const doFocus = (tid: string) => {
+      const tile: HTMLElement = document.getElementById(tid)
+      if (tile) tile.focus()
+    }
+
+    const moveHandler = (e: KeyboardEvent) => {
+      const tileContainer = document.activeElement?.closest('.wp-tile-layout')
+      if (!tileContainer) return
+
+      const getPrevClosestTile = (tkey: string, direction: string = 'col') => {
+        const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, props.layoutData)
+
+        // root
+        if (!tkey || tkey === '0') return
+
+        const isStopDirection = (_refParent?.direction || 'col') === direction
+        const prevSiblingRef = refChildren[idx - 1]
+
+        if (!isStopDirection || !prevSiblingRef) {
+          return getPrevClosestTile(parseParentTkey(tkey), direction)
+        }
+
+        if (prevSiblingRef) {
+          if (prevSiblingRef.children?.length) {
+            return prevSiblingRef.children[0]
+          }
+
+          return prevSiblingRef
+        }
+      }
+
+      const getNextClosestTile = (tkey: string, direction: string = 'col') => {
+        const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, props.layoutData)
+
+        // root
+        if (!tkey || tkey === '0') return
+
+        const isStopDirection = (_refParent?.direction || 'col') === direction
+        const nextSiblingRef = refChildren[idx + 1]
+
+        if (!isStopDirection || !nextSiblingRef) {
+          return getNextClosestTile(parseParentTkey(tkey), direction)
+        }
+
+        if (nextSiblingRef) {
+          const pickValidTile = (tile: any) => {
+            if (!tile.children?.length) {
+              return tile
+            }
+
+            // TODO: root original index
+            return pickValidTile(tile.children[0])
+          }
+
+          return pickValidTile(nextSiblingRef)
+        }
+      }
+
+      const tkey = tileContainer.getAttribute('data-key')
+      let tile = null
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          tile = getPrevClosestTile(tkey, 'col')
+          break
+        case 'ArrowRight':
+          tile = getNextClosestTile(tkey, 'col')
+          break
+        case 'ArrowUp':
+          tile = getPrevClosestTile(tkey, 'row')
+          break
+        case 'ArrowDown':
+          tile = getNextClosestTile(tkey, 'row')
+          break
+        default:
+      }
+
+      tile && doFocus(tile.id)
+    }
+
+    groupContainer?.addEventListener('keydown', moveHandler)
+    return () => {
+      groupContainer?.removeEventListener('keydown', moveHandler)
+    }
+  }, [props.layoutData])
+
+  return <></>
 }
 
 export function TileLayoutRoot() {
@@ -310,47 +410,50 @@ export function TileLayoutRoot() {
     })
 
   return (
-    <div className={'wp-tile-layout-root'}
-         id={`lsp-wp-${group}`}
-         onClick={(e) => {
-           const target = e.target as HTMLElement
-           const action = target.getAttribute('data-action')
-           const tid = target.closest('.wp-tile-layout')?.getAttribute('data-key')
+    <>
+      <MovementObserver group={group} layoutData={layoutData}/>
+      <div className={'wp-tile-layout-root'}
+           id={`lsp-wp-${group}`}
+           onClick={(e) => {
+             const target = e.target as HTMLElement
+             const action = target.getAttribute('data-action')
+             const tkey = target.closest('.wp-tile-layout')?.getAttribute('data-key')
 
-           switch (action) {
-             case 'left':
-               return setLayoutData(draft => {
-                 return resizeTileLeft(tid, draft)
-               })
-             case 'right':
-               return setLayoutData(draft => {
-                 return resizeTileRight(tid, draft)
-               })
-             case 'up':
-               return setLayoutData(draft => {
-                 return resizeTileUp(tid, draft)
-               })
-             case 'down':
-               return setLayoutData(draft => {
-                 return resizeTileDown(tid, draft)
-               })
-             case 'split-v':
-               return setLayoutData(draft => {
-                 return splitVertical(tid, draft)
-               })
-             case 'split-h':
-               return setLayoutData(draft => {
-                 return splitHorizontal(tid, draft)
-               })
-             case 'remove':
-               return setLayoutData(draft => {
-                 return removeTile(tid, draft)
-               })
-             default:
-           }
-         }}
-    >
-      <TileLayout group={group} depth={0} index={0} views={views} {...layoutData}/>
-    </div>
+             switch (action) {
+               case 'left':
+                 return setLayoutData(draft => {
+                   return resizeTileLeft(tkey, draft)
+                 })
+               case 'right':
+                 return setLayoutData(draft => {
+                   return resizeTileRight(tkey, draft)
+                 })
+               case 'up':
+                 return setLayoutData(draft => {
+                   return resizeTileUp(tkey, draft)
+                 })
+               case 'down':
+                 return setLayoutData(draft => {
+                   return resizeTileDown(tkey, draft)
+                 })
+               case 'split-v':
+                 return setLayoutData(draft => {
+                   return splitVertical(tkey, draft)
+                 })
+               case 'split-h':
+                 return setLayoutData(draft => {
+                   return splitHorizontal(tkey, draft)
+                 })
+               case 'remove':
+                 return setLayoutData(draft => {
+                   return removeTile(tkey, draft)
+                 })
+               default:
+             }
+           }}
+      >
+        <TileLayout group={group} depth={0} index={0} views={views} {...layoutData}/>
+      </div>
+    </>
   )
 }
