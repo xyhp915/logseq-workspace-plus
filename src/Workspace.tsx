@@ -1,7 +1,9 @@
+import './workspace.css'
 import React, {
   FunctionComponent,
   PropsWithChildren,
 } from 'react'
+import { TileLayoutRoot } from './Layout'
 
 function toClj(s) {
   if (!s) return s
@@ -37,31 +39,36 @@ export function initTestCustomRoute() {
       path: '/x-route',
       render: () => {
         return (
-          <div className={'flex items-center flex-col gap-4'}>
-            <div className={'flex gap-2 w-full'}>
-              <LSUI.Card className={'p-2 w-full'}>
-                <LSUI.CardHeader>
-                  <LSUI.CardTitle>
-                    <a onClick={async () => {
-                      const b = await logseq.Editor.getPage('charlie')
-                      logseq.Editor.openInRightSidebar(b.uuid)
-                    }}>
-                      [[Charlie]]
-                    </a>
-                  </LSUI.CardTitle>
-                  <LSUI.CardDescription>
-                    This is a description
-                  </LSUI.CardDescription>
-                </LSUI.CardHeader>
-                <LSUI.CardContent>
-                  <Components.Editor page={'charlie'}/>
-                </LSUI.CardContent>
-              </LSUI.Card>
-            </div>
-          </div>)
+          <TileLayoutRoot requireCardView={async () => {
+            const name = ['charlie', 'test'][Math.floor(Math.random() * 2)]
+            return () => {
+              return (
+                <LSUI.Card className={'p-2 w-full'}>
+                  <LSUI.CardHeader>
+                    <LSUI.CardTitle>
+                      <a onClick={async () => {
+                        const b = await logseq.Editor.getPage('charlie')
+                        logseq.Editor.openInRightSidebar(b.uuid)
+                      }}>
+                        [[{name}]]
+                      </a>
+                    </LSUI.CardTitle>
+                    <LSUI.CardDescription>
+                      This is a description
+                    </LSUI.CardDescription>
+                  </LSUI.CardHeader>
+                  <LSUI.CardContent>
+                    <Components.Editor page={name}/>
+                  </LSUI.CardContent>
+                </LSUI.Card>
+              )
+            }
+          }}/>
+        )
       }
     })
 
+  return
   logseq.Experiments.registerDaemonRenderer('cloud-card', {
     render: () => {
       return (

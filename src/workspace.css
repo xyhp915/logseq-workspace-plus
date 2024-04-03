@@ -1,0 +1,28 @@
+body[data-page="x-route"] {
+  .cp__sidebar-main-content {
+    @apply !max-w-none;
+
+    > .pb-24 {
+      @apply !pb-0 !mb-0;
+    }
+  }
+
+  #main-content-container {
+    @apply !p-0;
+  }
+}
+
+.wp-tile-label-text {
+  @apply text-xs right-10 top-3;
+}
+
+.wp-tile-layout-view {
+  @apply h-full w-full overflow-auto;
+
+  border-width: 4px;
+  border-color: transparent;
+
+  &:focus-within {
+    border-color: var(--lx-accent-10);
+  }
+}

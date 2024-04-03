@@ -1,4 +1,5 @@
 import '../src/main.css'
+import './index.css'
 import ReactDOM from 'react-dom'
 import { TileLayoutRoot } from '../src/Layout'
 

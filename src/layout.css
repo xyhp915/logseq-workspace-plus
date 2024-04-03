@@ -1,16 +1,24 @@
-body {
-  @apply p-2;
-}
-
 .wp-tile-layout-root {
-  @apply relative w-full h-[calc(100vh-16px)] bg-amber-100
-  border-2 border-amber-600;
+  @apply relative w-full h-[calc(100vh-48px)] border-2 border-amber-600;
+
+  background-color: var(--lx-gray-03);
 }
 
 .wp-tile-layout {
   @apply border-amber-600 active:ring-purple-600 active:ring-2 ring-green-600;
-  @apply bg-blue-100 h-full relative;
-  @apply grid relative focus:bg-green-200 focus-within:bg-green-200  overflow-hidden;
+  @apply h-full relative;
+  @apply grid relative focus:bg-green-200;
+  @apply relative overflow-auto;
+
+  background-color: var(--lx-gray-01);
+
+  &:focus, &:focus-within {
+    background-color: var(--lx-gray-03);
+
+    > .wp-tile-layout-view {
+      border-color: var(--lx-accent-10);
+    }
+  }
 }
 
 .wp-tile-layout.as-col {

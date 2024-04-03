@@ -1,6 +1,6 @@
 import './layout.css'
 import { useImmer } from 'use-immer'
-import { FC, FunctionComponent, useCallback, useEffect, useState } from 'react'
+import { FC, FunctionComponent, useEffect, useState } from 'react'
 import uniqid from 'uniqid'
 
 type Span = number
@@ -15,7 +15,6 @@ type TileLayoutAttrs = {
   children?: Array<Span | Partial<TileLayoutAttrs>>,
   parent?: TileLayoutAttrs
   views?: Record<string, FC<any>>
-  card?: any
 }
 
 export const gridN = 64
@@ -29,7 +28,7 @@ export function TileLayout(attrs: TileLayoutAttrs) {
   const parent = attrs?.parent
   const childrenLen = attrs?.children?.length
   const spanClass = parent?.direction ? `${parent?.direction}-span-${span}` : ''
-  const gridClass = !childrenLen ? 'flex justify-center items-center' : `grid-${direction}s-${gridN}`
+  const gridClass = !childrenLen ? 'flex' : `grid-${direction}s-${gridN}`
   const View = attrs.views?.[id] || attrs.views?.[tkey]
   let childrenSpanAcc = 0
 
@@ -40,30 +39,33 @@ export function TileLayout(attrs: TileLayoutAttrs) {
          id={id}
          tabIndex={0}
     >
-      <b className={'absolute bg-amber-500 text-white p-2 top-2 left-2 text-sm'}>
+      <b className={'wp-tile-label-text absolute'}>
         {tkey} ({span}, {id})
       </b>
 
       {/* card view */}
       {!childrenLen && View && (
-        <div className={'card-view absolute top-32 left-16 p-4 bg-green-600 text-white rounded'}>
-          <View/>
+        <div className={'wp-tile-layout-view'}>
+          <View id={id} tkey={tkey}/>
         </div>
       )}
 
       {!childrenLen && (
         <div className={'flex-1'}>
-          <span className={'grid grid-cols-2 grid-rows-2'}>
+          <div className={'grid grid-cols-2 grid-rows-2 absolute left-2 bottom-2'}>
             <button data-action={'left'} className={'px-2 text-white'}>⬅️</button>
             <button data-action={'right'} className={'px-2 text-white'}>➡️</button>
             <button data-action={'up'} className={'px-2 text-white'}>⬆️</button>
             <button data-action={'down'} className={'px-2 text-white'}>⬇️</button>
-            <div className={'flex items-center absolute bottom-2 right-4'}>
-              <button data-action={'split-v'} className={'px-2 bg-green-600 text-white mr-1 rounded'}>❙</button>
-              <button data-action={'split-h'} className={'px-1 bg-green-600 text-white ml-1 rounded'}>━</button>
-              <button data-action={'remove'} className={'px-2 bg-red-600 text-white ml-1 rounded'}>Ⅹ</button>
-            </div>
-          </span>
+          </div>
+          <div className={'flex items-center absolute bottom-2 right-4'}>
+            <button data-action={'split-v'} className={'px-2 bg-green-600 text-white mr-1 rounded'}>❙</button>
+            <button data-action={'split-h'} className={'px-1 bg-green-600 text-white ml-1 rounded'}>━</button>
+            <button data-action={'remove'} className={'px-2 bg-red-600 text-white ml-1 rounded'}>Ⅹ</button>
+          </div>
+          <div className={'flex items-center absolute top-2 right-2'}>
+            <button data-action={'set-view'} className={'px-2 bg-purple-600 text-white ml-1 rounded'}>+</button>
+          </div>
         </div>
       )}
 
@@ -111,6 +113,7 @@ const FlexSpan = -1
 const isNumber = (s: any) => typeof s === 'number'
 const isObject = (obj: any) => { return typeof obj === 'object' && obj !== null && !Array.isArray(obj)}
 const isFlexibleSpan = (s: any) => (!s || s === FlexSpan || s.span === FlexSpan || (isObject(s) && s.span == undefined))
+const isRootTkey = (s: string) => s === '0' || !s
 const parseParentTkey = (s: string) => s?.replace(/-\d+$/, '')
 
 type RawTileData = number | ({ span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>)
@@ -211,7 +214,7 @@ export function resizeTileUp(tkey: string, draftData: any, step: number = 1) {
 
   if (isInCols) {
     const parentTkey = parseParentTkey(tkey)
-    if (!parentTkey) return
+    if (isRootTkey(parentTkey)) return
     return resizeTileUp(parentTkey, draftData, step)
   }
 
@@ -228,7 +231,7 @@ export function resizeTileDown(tkey: string, draftData: any) {
 
   if (isInCols) {
     const parentTkey = parseParentTkey(tkey)
-    if (!parentTkey) return
+    if (isRootTkey(parentTkey)) return
     return resizeTileDown(parentTkey, draftData)
   }
 
@@ -242,15 +245,17 @@ export function resizeTileDown(tkey: string, draftData: any) {
 export function splitVertical(tkey: string, draftData: any) {
   const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   if (isNumber(value)) refChildren[idx] = { span: value, id: uniqid() }
-  refChildren[idx].children = [{ span: gridN / 2, id: uniqid(), }, { span: gridN / 2, id: uniqid() }]
+  const valueRef = !refChildren ? value : refChildren[idx]
+  valueRef.children = [{ span: gridN / 2, id: uniqid(), }, { span: gridN / 2, id: uniqid() }]
   return draftData
 }
 
 export function splitHorizontal(tkey: string, draftData: any) {
   const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   if (isNumber(value)) refChildren[idx] = { span: value, id: uniqid() }
-  refChildren[idx].direction = 'row'
-  refChildren[idx].children = [{ span: gridN / 2, id: uniqid() }, { span: gridN / 2, id: uniqid() }]
+  const valueRef = !refChildren ? value : refChildren[idx]
+  valueRef.direction = 'row'
+  valueRef.children = [{ span: gridN / 2, id: uniqid() }, { span: gridN / 2, id: uniqid() }]
   return draftData
 }
 
@@ -296,17 +301,20 @@ function inflateTileData(root: Partial<TileLayoutAttrs>) {
 }
 
 function MovementObserver(
-  props: { group: string, layoutData: Partial<TileLayoutAttrs> }
+  props: { group: string, layoutData: Partial<TileLayoutAttrs>, setLayoutData: Function }
 ) {
+  const { layoutData, setLayoutData } = props
+  const doc = top.document
+
   useEffect(() => {
-    const groupContainer = document.getElementById(`lsp-wp-${props.group}`)
+    const groupContainer = doc.getElementById(`lsp-wp-${props.group}`)
     const doFocus = (tid: string) => {
-      const tile: HTMLElement = document.getElementById(tid)
+      const tile: HTMLElement = doc.getElementById(tid)
       if (tile) tile.focus()
     }
 
     const moveHandler = (e: KeyboardEvent) => {
-      const tileContainer = document.activeElement?.closest('.wp-tile-layout')
+      const tileContainer = doc.activeElement?.closest('.wp-tile-layout')
       if (!tileContainer) return
 
       const getPrevClosestTile = (tkey: string, direction: string = 'col') => {
@@ -364,20 +372,54 @@ function MovementObserver(
       }
 
       const tkey = tileContainer.getAttribute('data-key')
+      const isCtrl = e.ctrlKey || e.metaKey
+      const isAlt = e.altKey
       let tile = null
 
       switch (e.key) {
         case 'ArrowLeft':
-          tile = getPrevClosestTile(tkey, 'col')
+          if (isCtrl) {
+            return setLayoutData(draft => {
+              return resizeTileLeft(tkey, draft)
+            })
+          }
+
+          if (isAlt) {
+            tile = getPrevClosestTile(tkey, 'col')
+          }
           break
         case 'ArrowRight':
-          tile = getNextClosestTile(tkey, 'col')
+          if (isCtrl) {
+            return setLayoutData(draft => {
+              return resizeTileRight(tkey, draft)
+            })
+          }
+
+          if (isAlt) {
+            tile = getNextClosestTile(tkey, 'col')
+          }
           break
         case 'ArrowUp':
-          tile = getPrevClosestTile(tkey, 'row')
+          if (isCtrl) {
+            return setLayoutData(draft => {
+              return resizeTileUp(tkey, draft)
+            })
+          }
+
+          if (isAlt) {
+            tile = getPrevClosestTile(tkey, 'row')
+          }
           break
         case 'ArrowDown':
-          tile = getNextClosestTile(tkey, 'row')
+          if (isCtrl) {
+            return setLayoutData(draft => {
+              return resizeTileDown(tkey, draft)
+            })
+          }
+
+          if (isAlt) {
+            tile = getNextClosestTile(tkey, 'row')
+          }
           break
         default:
       }
@@ -389,28 +431,40 @@ function MovementObserver(
     return () => {
       groupContainer?.removeEventListener('keydown', moveHandler)
     }
-  }, [props.layoutData])
+  }, [layoutData, setLayoutData])
 
   return <></>
 }
 
-export function TileLayoutRoot() {
+function createADemoView(tkey: string) {
+  return () => {
+    return (
+      <div className={'p-4 bg-green-600 text-white rounded-xl flex-1 w-full h-full flex items-center justify-center'}>
+        <button>Hi, Card View in #{tkey}!</button>
+      </div>
+    )
+  }
+}
+
+export function TileLayoutRoot(props: {
+  requireCardView: () => Promise<FunctionComponent<any>>
+}) {
   const group = 'charlie-1'
   const [layoutData, setLayoutData] = useImmer<Partial<TileLayoutAttrs>>(
     inflateTileData({
-      direction: 'row',
-      children: [
-        {
-          span: 24,
-          children: [16, { id: 'test-id', span: 22 }, 7, -1]
-        },
-        10,
-        {
-          span: 23,
-          children: [12, 12, 8, { span: 12, direction: 'row', children: [32, 32] }, -1]
-        },
-        { children: [23, 12, -1] }
-      ]
+      // direction: 'row',
+      // children: [
+      //   {
+      //     span: 24,
+      //     children: [16, { id: 'test-id', span: 22 }, 7, -1]
+      //   },
+      //   10,
+      //   {
+      //     span: 23,
+      //     children: [12, 12, 8, { span: 12, direction: 'row', children: [32, 32] }, -1]
+      //   },
+      //   { children: [23, 12, -1] }
+      // ]
     })
   )
 
@@ -419,15 +473,21 @@ export function TileLayoutRoot() {
       'test-id': () => <button>Hi, Card View!</button>
     })
 
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
     <>
-      <MovementObserver group={group} layoutData={layoutData}/>
+      {mounted && <MovementObserver group={group} layoutData={layoutData} setLayoutData={setLayoutData}/>}
       <div className={'wp-tile-layout-root'}
            id={`lsp-wp-${group}`}
            onClick={(e) => {
              const target = e.target as HTMLElement
              const action = target.getAttribute('data-action')
              const tkey = target.closest('.wp-tile-layout')?.getAttribute('data-key')
+             const tid = target.closest('.wp-tile-layout')?.id
 
              switch (action) {
                case 'left':
@@ -457,6 +517,13 @@ export function TileLayoutRoot() {
                case 'remove':
                  return setLayoutData(draft => {
                    return removeTile(tkey, draft)
+                 })
+               case 'set-view':
+                 props.requireCardView().then(View => {
+                   return setViews({
+                     ...views,
+                     [tid]: View
+                   })
                  })
                default:
              }

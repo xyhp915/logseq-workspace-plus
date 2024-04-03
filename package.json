@@ -4,7 +4,7 @@
   "description": "A Logseq plugin for workspace plus.",
   "scripts": {
     "dev": "parcel watch ./index.html --public-url ./ & ./node_modules/.bin/http-server ./dist",
-    "build": "parcel build ./index.html --public-url .",
+    "build": "rm -rf .parcel-cache && parcel build ./index.html --public-url .",
     "playground:vite": "vite ./playground"
   },
   "author": "charlie",
@@ -35,6 +35,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.19",
     "http-server": "^14.1.1",
+    "os-browserify": "^0.3.0",
     "parcel": "2.11.0",
     "postcss": "^8.4.38",
     "postcss-nesting": "^12.1.0",

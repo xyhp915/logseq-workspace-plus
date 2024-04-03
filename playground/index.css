@@ -1,0 +1,7 @@
+body {
+  @apply p-2;
+}
+
+.wp-tile-layout-root {
+  @apply h-[calc(100vh-30px)] bg-amber-100;
+}
