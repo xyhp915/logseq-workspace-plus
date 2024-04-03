@@ -1,13 +1,14 @@
 import './layout.css'
 import { useImmer } from 'use-immer'
-import { original } from 'immer'
 import { FC, FunctionComponent, useCallback, useState } from 'react'
+import uniqid from 'uniqid'
 
 type Span = number
 type TileLayoutAttrs = {
   group: string,
   depth: number,
   index: number,
+  id?: string,
   tid?: string,
   direction?: 'row' | 'col',
   span?: Span,
@@ -19,16 +20,17 @@ type TileLayoutAttrs = {
 
 export const gridN = 64
 
-export function TileLayout (attrs: TileLayoutAttrs) {
+export function TileLayout(attrs: TileLayoutAttrs) {
   const span = attrs?.span
   const group = attrs?.group
   const direction = attrs?.direction ?? 'col'
+  const id = attrs?.id
   const tid = attrs?.tid ?? 0
   const parent = attrs?.parent
   const childrenLen = attrs?.children?.length
   const spanClass = parent?.direction ? `${parent?.direction}-span-${span}` : ''
   const gridClass = !childrenLen ? 'flex justify-center items-center' : `grid-${direction}s-${gridN}`
-  const View = tid && attrs.views?.[tid]
+  const View = attrs.views?.[id] || attrs.views?.[tid]
   let childrenSpanAcc = 0
 
   return (
@@ -37,14 +39,14 @@ export function TileLayout (attrs: TileLayoutAttrs) {
          data-key={tid}
          tabIndex={0}
     >
-      <b className={'absolute bg-amber-500 text-white p-2 top-2 left-2'}>
-        {tid} ({span})
+      <b className={'absolute bg-amber-500 text-white p-2 top-2 left-2 text-sm'}>
+        {tid} ({span}, {id})
       </b>
 
       {/* card view */}
       {!childrenLen && View && (
         <div className={'card-view absolute top-32 left-16 p-4 bg-green-600 text-white rounded'}>
-          <View />
+          <View/>
         </div>
       )}
 
@@ -55,6 +57,11 @@ export function TileLayout (attrs: TileLayoutAttrs) {
             <button data-action={'right'} className={'px-2 text-white'}>➡️</button>
             <button data-action={'up'} className={'px-2 text-white'}>⬆️</button>
             <button data-action={'down'} className={'px-2 text-white'}>⬇️</button>
+            <div className={'flex items-center absolute bottom-2 right-4'}>
+              <button data-action={'split-v'} className={'px-2 bg-green-600 text-white mr-1 rounded'}>❙</button>
+              <button data-action={'split-h'} className={'px-1 bg-green-600 text-white ml-1 rounded'}>━</button>
+              <button data-action={'remove'} className={'px-2 bg-red-600 text-white ml-1 rounded'}>Ⅹ</button>
+            </div>
           </span>
         </div>
       )}
@@ -88,7 +95,7 @@ export function TileLayout (attrs: TileLayoutAttrs) {
   )
 }
 
-export function getTileDataWithTid (tid: string, draftData: any) {
+export function parseTileDataWithTid(tid: string, draftData: any) {
   // remove root index
   const indexes = tid.split('-').map(Number)?.slice(1)
   const ret = indexes.reduce(([value, refChildren, refParent], idx) => {
@@ -104,8 +111,8 @@ const isObject = (obj: any) => { return typeof obj === 'object' && obj !== null 
 const isFlexibleSpan = (s: any) => (!s || s === -1 || s.span === -1 || (isObject(s) && s.span == undefined))
 const parseParentTid = (s: string) => s?.replace(/-\d+$/, '')
 
-type RawTileData = number | { span: number, children?: Array<RawTileData> }
-type RawTileDataProxy = { span: number, children?: Array<RawTileData> }
+type RawTileData = number | ({ span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>)
+type RawTileDataProxy = { span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>
 type IndexedTileData = {
   idx: number,
   value: RawTileData,
@@ -113,7 +120,7 @@ type IndexedTileData = {
   refParent?: RawTileData
 }
 
-function resizeTilePrevSibling (
+function resizeTilePrevSibling(
   { idx, refChildren, }: IndexedTileData,
   draftData: any,
   step = 1
@@ -137,8 +144,8 @@ function resizeTilePrevSibling (
   return draftData
 }
 
-export function resizeTileLeft (tid: string, draftData: any, step: number = 1) {
-  const [value, refChildren, refParent, idx] = getTileDataWithTid(tid, draftData)
+export function resizeTileLeft(tid: string, draftData: any, step: number = 1) {
+  const [value, refChildren, refParent, idx] = parseTileDataWithTid(tid, draftData)
   const isInRows = refParent?.direction === 'row'
 
   if (isInRows) {
@@ -155,7 +162,7 @@ export function resizeTileLeft (tid: string, draftData: any, step: number = 1) {
     step)
 }
 
-function resizeTileNextSibling (
+function resizeTileNextSibling(
   { idx, refChildren }: IndexedTileData,
   draftData: any,
   step = 1
@@ -179,8 +186,8 @@ function resizeTileNextSibling (
   return draftData
 }
 
-export function resizeTileRight (tid: string, draftData: any, step: number = 1) {
-  const [value, refChildren, refParent, idx] = getTileDataWithTid(tid, draftData)
+export function resizeTileRight(tid: string, draftData: any, step: number = 1) {
+  const [value, refChildren, refParent, idx] = parseTileDataWithTid(tid, draftData)
   const isInRows = refParent?.direction === 'row'
 
   if (isInRows) {
@@ -196,8 +203,8 @@ export function resizeTileRight (tid: string, draftData: any, step: number = 1) 
     draftData, step)
 }
 
-export function resizeTileUp (tid: string, draftData: any, step: number = 1) {
-  const [value, refChildren, refParent, idx] = getTileDataWithTid(tid, draftData)
+export function resizeTileUp(tid: string, draftData: any, step: number = 1) {
+  const [value, refChildren, refParent, idx] = parseTileDataWithTid(tid, draftData)
   const isInCols = refParent?.direction !== 'row'
 
   if (isInCols) {
@@ -213,35 +220,79 @@ export function resizeTileUp (tid: string, draftData: any, step: number = 1) {
     draftData, step)
 }
 
-export function resizeTileDown (tid: string, draftData: any) {}
+export function resizeTileDown(tid: string, draftData: any) {
+  const [value, refChildren, refParent, idx] = parseTileDataWithTid(tid, draftData)
+  const isInCols = refParent?.direction !== 'row'
 
-export function insertTileStart (tid: string,
-  tile: Partial<TileLayoutAttrs>, draftData: any) {
+  if (isInCols) {
+    const parentTid = parseParentTid(tid)
+    if (!parentTid) return
+    return resizeTileDown(parentTid, draftData)
+  }
 
+  if (isNumber(value)) refChildren[idx] = { span: value }
+
+  return resizeTileNextSibling(
+    { idx, value, refChildren },
+    draftData)
 }
 
-export function insertTileAfter (tid: string,
-  tile: Partial<TileLayoutAttrs>, draftData: any) {
-
+export function splitVertical(tid: string, draftData: any) {
+  const [value, refChildren, _refParent, idx] = parseTileDataWithTid(tid, draftData)
+  if (isNumber(value)) refChildren[idx] = { span: value, id: uniqid() }
+  refChildren[idx].children = [{ span: gridN / 2, id: uniqid(), }, { span: gridN / 2, id: uniqid() }]
+  return draftData
 }
 
-export function splitVertical (tid: string, draftData: any) {
-
+export function splitHorizontal(tid: string, draftData: any) {
+  const [value, refChildren, _refParent, idx] = parseTileDataWithTid(tid, draftData)
+  if (isNumber(value)) refChildren[idx] = { span: value, id: uniqid() }
+  refChildren[idx].direction = 'row'
+  refChildren[idx].children = [{ span: gridN / 2, id: uniqid() }, { span: gridN / 2, id: uniqid() }]
+  return draftData
 }
 
-export function splitHorizontal (tid: string, draftData: any) {
+export function removeTile(tid: string, draftData: any) {
+  const [value, refChildren, _refParent, idx] = parseTileDataWithTid(tid, draftData)
+  const prevSiblingRef = refChildren[idx - 1]
+  const nextSiblingRef = refChildren[idx + 1]
 
+  if (prevSiblingRef && !isNumber(prevSiblingRef)) {
+    prevSiblingRef.span += value.span
+  } else if (nextSiblingRef && !isNumber(nextSiblingRef)
+    && nextSiblingRef.span !== -1) {
+    nextSiblingRef.span += value.span
+  }
+
+  refChildren.splice(idx, 1)
+  return draftData
 }
 
-export function TileLayoutRoot () {
+function inflateTileData(root: Partial<TileLayoutAttrs>) {
+  const { children } = root
+  if (root?.id == undefined) root.id = uniqid()
+  if (!children) return root
+
+  return {
+    ...root,
+    children: children.map((child: any) => {
+      if (isNumber(child)) {
+        child = { span: child }
+      }
+      return inflateTileData(child as Partial<TileLayoutAttrs>)
+    })
+  }
+}
+
+export function TileLayoutRoot() {
   const group = 'charlie-1'
   const [layoutData, setLayoutData] = useImmer<Partial<TileLayoutAttrs>>(
-    {
+    inflateTileData({
       direction: 'row',
       children: [
         {
           span: 24,
-          children: [16, { span: 22 }, 7, -1]
+          children: [16, { id: 'test-id', span: 22 }, 7, -1]
         },
         10,
         {
@@ -250,11 +301,13 @@ export function TileLayoutRoot () {
         },
         { children: [23, 12, -1] }
       ]
-    }
+    })
   )
 
   const [views, setViews] =
-    useState<{ [tid: string]: FunctionComponent<any> }>({'0-0-1': () => <h2>Hi, Card View!</h2>})
+    useState<{ [id: string]: FunctionComponent<any> }>({
+      'test-id': () => <button>Hi, Card View!</button>
+    })
 
   return (
     <div className={'wp-tile-layout-root'}
@@ -277,11 +330,24 @@ export function TileLayoutRoot () {
                return setLayoutData(draft => {
                  return resizeTileUp(tid, draft)
                })
-
+             case 'down':
+               return setLayoutData(draft => {
+                 return resizeTileDown(tid, draft)
+               })
+             case 'split-v':
+               return setLayoutData(draft => {
+                 return splitVertical(tid, draft)
+               })
+             case 'split-h':
+               return setLayoutData(draft => {
+                 return splitHorizontal(tid, draft)
+               })
+             case 'remove':
+               return setLayoutData(draft => {
+                 return removeTile(tid, draft)
+               })
              default:
-
            }
-
          }}
     >
       <TileLayout group={group} depth={0} index={0} views={views} {...layoutData}/>
