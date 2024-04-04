@@ -1,12 +1,20 @@
 import '../src/main.css'
 import './index.css'
 import ReactDOM from 'react-dom'
-import { TileLayoutRoot } from '../src/Layout'
+import { getCardViewCtorFromRegistry, TileLayoutRoot } from '../src/Layout'
 
 function Playground() {
   return (
     <div className={'relative'}>
-      <TileLayoutRoot/>
+      <TileLayoutRoot requireCardView={async (tile) => {
+        const cardID = 'HiCard'
+        const CardViewCtor = getCardViewCtorFromRegistry(cardID)
+        if (!CardViewCtor) {
+          throw new Error(`${cardID} not registered!`)
+        }
+
+        return new CardViewCtor(tile)
+      }}/>
     </div>
   )
 }

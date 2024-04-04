@@ -2,9 +2,12 @@ import './layout.css'
 import { useImmer } from 'use-immer'
 import { FC, FunctionComponent, useEffect, useState } from 'react'
 import uniqid from 'uniqid'
+import { CardID, ICardView, ICardViewConstructor } from './cards/shared'
+import { HiCard } from './cards/Hi'
 
-type Span = number
-type TileLayoutAttrs = {
+export type Span = number
+export type ViewsRecord = Record<CardID, ICardView | FunctionComponent<any>>
+export type TileLayoutAttrs = {
   group: string,
   depth: number,
   index: number,
@@ -14,7 +17,7 @@ type TileLayoutAttrs = {
   span?: Span,
   children?: Array<Span | Partial<TileLayoutAttrs>>,
   parent?: TileLayoutAttrs
-  views?: Record<string, FC<any>>
+  views?: ViewsRecord
 }
 
 export const gridN = 64
@@ -29,7 +32,8 @@ export function TileLayout(attrs: TileLayoutAttrs) {
   const childrenLen = attrs?.children?.length
   const spanClass = parent?.direction ? `${parent?.direction}-span-${span}` : ''
   const gridClass = !childrenLen ? 'flex' : `grid-${direction}s-${gridN}`
-  const View = attrs.views?.[id] || attrs.views?.[tkey]
+  const view = attrs.views?.[id] || attrs.views?.[tkey]
+  const View = typeof view === 'function' ? view : view?.render
   let childrenSpanAcc = 0
 
   return (
@@ -46,7 +50,7 @@ export function TileLayout(attrs: TileLayoutAttrs) {
       {/* card view */}
       {!childrenLen && View && (
         <div className={'wp-tile-layout-view'}>
-          <View id={id} tkey={tkey}/>
+          <View tid={id} tkey={tkey}/>
         </div>
       )}
 
@@ -116,9 +120,9 @@ const isFlexibleSpan = (s: any) => (!s || s === FlexSpan || s.span === FlexSpan 
 const isRootTkey = (s: string) => s === '0' || !s
 const parseParentTkey = (s: string) => s?.replace(/-\d+$/, '')
 
-type RawTileData = number | ({ span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>)
-type RawTileDataProxy = { span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>
-type IndexedTileData = {
+export type RawTileData = number | ({ span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>)
+export type RawTileDataProxy = { span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>
+export type IndexedTileData = {
   idx: number,
   value: RawTileData,
   refChildren?: Array<RawTileData>,
@@ -301,16 +305,25 @@ function inflateTileData(root: Partial<TileLayoutAttrs>) {
 }
 
 function MovementObserver(
-  props: { group: string, layoutData: Partial<TileLayoutAttrs>, setLayoutData: Function }
+  props: {
+    group: string,
+    views: ViewsRecord,
+    layoutData: Partial<TileLayoutAttrs>,
+    setLayoutData: Function
+  }
 ) {
-  const { layoutData, setLayoutData } = props
+  const { views, layoutData, setLayoutData } = props
   const doc = top.document
 
   useEffect(() => {
     const groupContainer = doc.getElementById(`lsp-wp-${props.group}`)
     const doFocus = (tid: string) => {
       const tile: HTMLElement = doc.getElementById(tid)
-      if (tile) tile.focus()
+      if (tile) {
+        const view  = props.views?.[tid] as ICardView
+        tile.focus()
+        view?.onFocus(tile)
+      }
     }
 
     const moveHandler = (e: KeyboardEvent) => {
@@ -431,10 +444,17 @@ function MovementObserver(
     return () => {
       groupContainer?.removeEventListener('keydown', moveHandler)
     }
-  }, [layoutData, setLayoutData])
+  }, [views, layoutData, setLayoutData])
 
   return <></>
 }
+
+// cards view registry
+const cardsViewRegistry = new Map<CardID, ICardViewConstructor>()
+cardsViewRegistry.set(HiCard.name, HiCard)
+
+export const getCardViewCtorFromRegistry = (id: CardID) => cardsViewRegistry.get(id)
+export const removeCardViewFromRegistry = (id: CardID) => cardsViewRegistry.delete(id)
 
 function createADemoView(tkey: string) {
   return () => {
@@ -447,7 +467,7 @@ function createADemoView(tkey: string) {
 }
 
 export function TileLayoutRoot(props: {
-  requireCardView: () => Promise<FunctionComponent<any>>
+  requireCardView: (t: Partial<TileLayoutAttrs>) => Promise<ICardView | FC<any>>
 }) {
   const group = 'charlie-1'
   const [layoutData, setLayoutData] = useImmer<Partial<TileLayoutAttrs>>(
@@ -469,7 +489,7 @@ export function TileLayoutRoot(props: {
   )
 
   const [views, setViews] =
-    useState<{ [id: string]: FunctionComponent<any> }>({
+    useState<ViewsRecord>({
       'test-id': () => <button>Hi, Card View!</button>
     })
 
@@ -480,7 +500,11 @@ export function TileLayoutRoot(props: {
 
   return (
     <>
-      {mounted && <MovementObserver group={group} layoutData={layoutData} setLayoutData={setLayoutData}/>}
+      {mounted && <MovementObserver
+        group={group}
+        views={views}
+        layoutData={layoutData}
+        setLayoutData={setLayoutData}/>}
       <div className={'wp-tile-layout-root'}
            id={`lsp-wp-${group}`}
            onClick={(e) => {
@@ -519,7 +543,7 @@ export function TileLayoutRoot(props: {
                    return removeTile(tkey, draft)
                  })
                case 'set-view':
-                 props.requireCardView().then(View => {
+                 props.requireCardView({ id: tid }).then(View => {
                    return setViews({
                      ...views,
                      [tid]: View

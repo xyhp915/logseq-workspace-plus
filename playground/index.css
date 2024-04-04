@@ -1,5 +1,9 @@
 body {
   @apply p-2;
+
+  --lx-gray-01: #eee;
+  --lx-gray-03: #ccc;
+  --lx-accent-10: #0096ff;
 }
 
 .wp-tile-layout-root {
