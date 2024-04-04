@@ -4,6 +4,8 @@ import { FC, FunctionComponent, useEffect, useState } from 'react'
 import uniqid from 'uniqid'
 import { CardID, ICardView, ICardViewConstructor } from './cards/shared'
 import { HiCard } from './cards/Hi'
+import { original } from 'immer'
+import { YoutubeCard } from './cards/Youtube'
 
 export type Span = number
 export type ViewsRecord = Record<CardID, ICardView | FunctionComponent<any>>
@@ -263,7 +265,7 @@ export function splitHorizontal(tkey: string, draftData: any) {
   return draftData
 }
 
-export function removeTile(tkey: string, draftData: any) {
+export function removeTile(tkey: string, draftData: any, callback?: (v: any) => void) {
   const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   const prevSiblingRef = refChildren[idx - 1]
   const nextSiblingRef = refChildren[idx + 1]
@@ -279,10 +281,15 @@ export function removeTile(tkey: string, draftData: any) {
     nextSiblingRef.span += value.span
   }
 
+  if (!refChildren) {
+    return draftData
+  }
+
+  callback?.apply(null, [original(value)])
   refChildren.splice(idx, 1)
 
   if (refChildren.length === 0) {
-    removeTile(parseParentTkey(tkey), draftData)
+    removeTile(parseParentTkey(tkey), draftData, callback)
   }
 
   return draftData
@@ -320,7 +327,7 @@ function MovementObserver(
     const doFocus = (tid: string) => {
       const tile: HTMLElement = doc.getElementById(tid)
       if (tile) {
-        const view  = props.views?.[tid] as ICardView
+        const view = props.views?.[tid] as ICardView
         tile.focus()
         view?.onFocus(tile)
       }
@@ -452,9 +459,18 @@ function MovementObserver(
 // cards view registry
 const cardsViewRegistry = new Map<CardID, ICardViewConstructor>()
 cardsViewRegistry.set(HiCard.name, HiCard)
+cardsViewRegistry.set(YoutubeCard.name, YoutubeCard)
 
 export const getCardViewCtorFromRegistry = (id: CardID) => cardsViewRegistry.get(id)
 export const removeCardViewFromRegistry = (id: CardID) => cardsViewRegistry.delete(id)
+
+export function createCardViewFromJSONMeta(meta: any) {
+  const { id, tileLayout, ...opts } = meta
+  const Ctor = getCardViewCtorFromRegistry(id)
+  if (!Ctor) return
+
+  return new Ctor(tileLayout, opts)
+}
 
 function createADemoView(tkey: string) {
   return () => {
@@ -469,24 +485,8 @@ function createADemoView(tkey: string) {
 export function TileLayoutRoot(props: {
   requireCardView: (t: Partial<TileLayoutAttrs>) => Promise<ICardView | FC<any>>
 }) {
-  const group = 'charlie-1'
-  const [layoutData, setLayoutData] = useImmer<Partial<TileLayoutAttrs>>(
-    inflateTileData({
-      // direction: 'row',
-      // children: [
-      //   {
-      //     span: 24,
-      //     children: [16, { id: 'test-id', span: 22 }, 7, -1]
-      //   },
-      //   10,
-      //   {
-      //     span: 23,
-      //     children: [12, 12, 8, { span: 12, direction: 'row', children: [32, 32] }, -1]
-      //   },
-      //   { children: [23, 12, -1] }
-      // ]
-    })
-  )
+  const group = 'lsp-ws-1'
+  const [layoutData, setLayoutData] = useImmer<Partial<TileLayoutAttrs>>(inflateTileData({}))
 
   const [views, setViews] =
     useState<ViewsRecord>({
@@ -497,6 +497,31 @@ export function TileLayoutRoot(props: {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // persist the layout & views
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem(group, JSON.stringify({ layoutData, views }))
+    } else {
+      const data = localStorage.getItem(group)
+      if (data) {
+        const { layoutData, views } = JSON.parse(data)
+        setLayoutData(layoutData)
+
+        if (views) {
+          Object.entries(views).forEach(([id, viewMeta]) => {
+            if (viewMeta) {
+              views[id] = createCardViewFromJSONMeta(viewMeta)
+            } else {
+              delete views[id]
+            }
+          })
+
+          setViews(views)
+        }
+      }
+    }
+  }, [mounted, layoutData, views])
 
   return (
     <>
@@ -540,7 +565,15 @@ export function TileLayoutRoot(props: {
                  })
                case 'remove':
                  return setLayoutData(draft => {
-                   return removeTile(tkey, draft)
+                   return removeTile(tkey, draft, (t) => {
+                     if (t?.id && views[t.id]) {
+                       console.log('===>> remove:' , t)
+                       setViews((v) => {
+                         delete v[t.id]
+                         return v
+                       })
+                     }
+                   })
                  })
                case 'set-view':
                  props.requireCardView({ id: tid }).then(View => {

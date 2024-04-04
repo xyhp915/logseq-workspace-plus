@@ -9,3 +9,11 @@ body {
 .wp-tile-layout-root {
   @apply h-[calc(100vh-30px)] bg-amber-100;
 }
+
+.wp-tile-layout.flex {
+  @apply !flex;
+}
+
+.wp-tile-layout-view {
+  @apply w-full;
+}

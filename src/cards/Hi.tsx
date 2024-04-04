@@ -14,8 +14,8 @@ export class HiCard implements ICardView {
 
   render(props: any): React.ReactElement {
     return (
-      <div className={'flex py-20 items-center justify-center'}>
-        <h1 className={'text-3xl text-pink-500'}>Hi, in
+      <div className={'flex h-full items-center justify-center w-full'}>
+        <h1 className={'text-3xl text-pink-500'}>Hi 🃏 for you, in
           <button className={'bg-green-600 text-white'}
                   onClick={() => alert(JSON.stringify(this))}
           >
@@ -28,7 +28,7 @@ export class HiCard implements ICardView {
 
   // hooks
   onFocus(e: any) {
-    console.log('===>> focus:', this.tileLayout.id, '<<==>>', e)
+    console.info('===>> focus:', this.tileLayout.id, '<<==>>', e)
   }
 
   static async onBeforeAddView(tileData: Partial<TileLayoutAttrs>) {

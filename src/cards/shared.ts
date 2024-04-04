@@ -4,7 +4,7 @@ import { TileLayoutAttrs } from '../Layout'
 export type CardID = string
 
 export interface ICardViewConstructor {
-  new(tile: Partial<TileLayoutAttrs>): ICardView
+  new(tile: Partial<TileLayoutAttrs>, opts?: any): ICardView
 
   onBeforeAddView?(tile: Partial<TileLayoutAttrs>): Promise<any>
 }

@@ -7,7 +7,7 @@ function Playground() {
   return (
     <div className={'relative'}>
       <TileLayoutRoot requireCardView={async (tile) => {
-        const cardID = 'HiCard'
+        const cardID = ['HiCard', 'YoutubeCard'][Math.floor(Math.random() * 2)]
         const CardViewCtor = getCardViewCtorFromRegistry(cardID)
         if (!CardViewCtor) {
           throw new Error(`${cardID} not registered!`)
