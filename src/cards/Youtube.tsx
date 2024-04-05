@@ -4,6 +4,7 @@ import { TileLayoutAttrs } from '../Layout'
 import { useEffect, useState } from 'react'
 
 export class YoutubeCard implements ICardView {
+  static name = 'YoutubeCard'
   private _id: string = 'YoutubeCard'
   private _title: string = 'Youtube Card'
   private readonly _tileLayout: any
@@ -30,6 +31,7 @@ export class YoutubeCard implements ICardView {
         {!url1 && <h1 className={'text-3xl text-pink-500'}>Youtube Card</h1>}
         {typeof url1 === 'string' ? (
           <iframe width="100%" height="100%"
+                  style={{ margin: 0 }}
                   src={`https://www.youtube.com/embed/${url1.split('v=')[1]}`}
                   title="YouTube video player" frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

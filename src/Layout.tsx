@@ -6,6 +6,7 @@ import { CardID, ICardView, ICardViewConstructor } from './cards/shared'
 import { HiCard } from './cards/Hi'
 import { original } from 'immer'
 import { YoutubeCard } from './cards/Youtube'
+import { EditorCard } from './cards/Editor'
 
 export type Span = number
 export type ViewsRecord = Record<CardID, ICardView | FunctionComponent<any>>
@@ -252,7 +253,26 @@ export function splitVertical(tkey: string, draftData: any) {
   const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   if (isNumber(value)) refChildren[idx] = { span: value, id: uniqid() }
   const valueRef = !refChildren ? value : refChildren[idx]
-  valueRef.children = [{ span: gridN / 2, id: uniqid(), }, { span: gridN / 2, id: uniqid() }]
+  const spanId = valueRef.id
+
+  if (!_refParent || _refParent?.direction === 'row') {
+    if (!_refParent) valueRef.direction = 'col'
+    valueRef.id = uniqid()
+    valueRef.children = [{ span: gridN / 2, id: spanId }, { span: gridN / 2, id: uniqid() }]
+  } else {
+    const spanVal = isFlexibleSpan(valueRef.span) ? (
+      refChildren?.length ? (gridN - (refChildren.reduce((a, v) => {
+        v = isNumber(v) ? v : v.span
+        return a + (isFlexibleSpan(v) ? 0 : v)
+      }), 0)) : gridN
+    ) : valueRef.span
+    const span1 = Math.floor(spanVal / 2)
+    const span2 = spanVal - span1
+
+    valueRef.span = span1
+    refChildren[idx + 1] = { span: span2, id: uniqid() }
+  }
+
   return draftData
 }
 
@@ -260,8 +280,26 @@ export function splitHorizontal(tkey: string, draftData: any) {
   const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   if (isNumber(value)) refChildren[idx] = { span: value, id: uniqid() }
   const valueRef = !refChildren ? value : refChildren[idx]
-  valueRef.direction = 'row'
-  valueRef.children = [{ span: gridN / 2, id: uniqid() }, { span: gridN / 2, id: uniqid() }]
+  const spanId = valueRef.id
+
+  if (_refParent?.direction !== 'row') {
+    valueRef.direction = 'row'
+    valueRef.id = uniqid()
+    valueRef.children = [{ span: gridN / 2, id: spanId }, { span: gridN / 2, id: uniqid() }]
+  } else {
+    const spanVal = isFlexibleSpan(valueRef.span) ? (
+      refChildren?.length ? (gridN - (refChildren.reduce((a, v) => {
+        v = isNumber(v) ? v : v.span
+        return a + (isFlexibleSpan(v) ? 0 : v)
+      }), 0)) : gridN
+    ) : valueRef.span
+    const span1 = Math.floor(spanVal / 2)
+    const span2 = spanVal - span1
+
+    valueRef.span = span1
+    refChildren[idx + 1] = { span: span2, id: uniqid() }
+  }
+
   return draftData
 }
 
@@ -460,6 +498,7 @@ function MovementObserver(
 const cardsViewRegistry = new Map<CardID, ICardViewConstructor>()
 cardsViewRegistry.set(HiCard.name, HiCard)
 cardsViewRegistry.set(YoutubeCard.name, YoutubeCard)
+cardsViewRegistry.set(EditorCard.name, EditorCard)
 
 export const getCardViewCtorFromRegistry = (id: CardID) => cardsViewRegistry.get(id)
 export const removeCardViewFromRegistry = (id: CardID) => cardsViewRegistry.delete(id)
@@ -567,7 +606,7 @@ export function TileLayoutRoot(props: {
                  return setLayoutData(draft => {
                    return removeTile(tkey, draft, (t) => {
                      if (t?.id && views[t.id]) {
-                       console.log('===>> remove:' , t)
+                       console.log('===>> remove:', t)
                        setViews((v) => {
                          delete v[t.id]
                          return v

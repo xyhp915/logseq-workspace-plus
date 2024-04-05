@@ -26,3 +26,9 @@ body[data-page="x-route"] {
     border-color: var(--lx-accent-10);
   }
 }
+
+.wp-tile-layout {
+  &.flex {
+    @apply !flex;
+  }
+}

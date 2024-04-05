@@ -3,6 +3,7 @@ import React from 'react'
 import { TileLayoutAttrs } from '../Layout'
 
 export class HiCard implements ICardView {
+  static name = 'HiCard'
   private _id: string = 'HiCard'
   private _title: string = 'A card to say Hi for beginners!'
   private readonly _tileLayout: Partial<TileLayoutAttrs>
