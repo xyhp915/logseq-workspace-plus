@@ -1,6 +1,6 @@
 import { CardID, ICardView } from './shared'
 import * as console from 'console'
-import { TileLayoutAttrs } from '../Layout'
+import { persistLayoutAndViewState, TileLayoutAttrs } from '../Layout'
 import { useEffect, useState } from 'react'
 
 export class YoutubeCard implements ICardView {
@@ -48,6 +48,7 @@ export class YoutubeCard implements ICardView {
               onClick={(e) => {
                 const url1 = (e.target as any).previousElementSibling.value
                 setUrl1(url1)
+                persistLayoutAndViewState()
               }}
             >
               Load

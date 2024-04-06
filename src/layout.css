@@ -21,6 +21,9 @@
   }
 }
 
+.wp-tile-layout-view-placeholder {
+  @apply h-full w-full;
+}
 .wp-tile-layout.as-col {
   > div.wp-tile-layout {
     @apply border-r-2;

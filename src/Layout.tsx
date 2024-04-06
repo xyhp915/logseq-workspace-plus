@@ -21,6 +21,7 @@ export type TileLayoutAttrs = {
   children?: Array<Span | Partial<TileLayoutAttrs>>,
   parent?: TileLayoutAttrs
   views?: ViewsRecord
+  viewPlaceholder?: FC<any>
 }
 
 export const gridN = 64
@@ -51,11 +52,13 @@ export function TileLayout(attrs: TileLayoutAttrs) {
       </b>
 
       {/* card view */}
-      {!childrenLen && View && (
-        <div className={'wp-tile-layout-view'}>
+      {!childrenLen && (View ?
+        (<div className={'wp-tile-layout-view'}>
           <View tid={id} tkey={tkey}/>
-        </div>
-      )}
+        </div>) :
+        (<div className={'wp-tile-layout-view-placeholder'}>
+          {attrs.viewPlaceholder && <attrs.viewPlaceholder/>}
+        </div>))}
 
       {!childrenLen && (
         <div className={'flex-1'}>
@@ -71,6 +74,7 @@ export function TileLayout(attrs: TileLayoutAttrs) {
             <button data-action={'remove'} className={'px-2 bg-red-600 text-white ml-1 rounded'}>Ⅹ</button>
           </div>
           <div className={'flex items-center absolute top-2 right-2'}>
+            {View && <button data-action={'remove-view'} className={'px-2 bg-red-500 text-white rounded'}>-</button>}
             <button data-action={'set-view'} className={'px-2 bg-purple-600 text-white ml-1 rounded'}>+</button>
           </div>
         </div>
@@ -93,6 +97,7 @@ export function TileLayout(attrs: TileLayoutAttrs) {
           props.children = (child as TileLayoutAttrs).children
           props.parent = { ...attrs, direction }
           props.views = attrs.views
+          props.viewPlaceholder = attrs.viewPlaceholder
 
           childrenSpanAcc += props.span
 
@@ -521,11 +526,19 @@ function createADemoView(tkey: string) {
   }
 }
 
+let setLastLayoutUpdate: Function = null
+
+export function persistLayoutAndViewState() {
+  setLastLayoutUpdate?.(Date.now())
+}
+
 export function TileLayoutRoot(props: {
   requireCardView: (t: Partial<TileLayoutAttrs>) => Promise<ICardView | FC<any>>
+  viewPlaceholder?: FC<any>
 }) {
   const group = 'lsp-ws-1'
   const [layoutData, setLayoutData] = useImmer<Partial<TileLayoutAttrs>>(inflateTileData({}))
+  const [lastLayoutUpdate, setLastLayoutUpdate1] = useState(Date.now())
 
   const [views, setViews] =
     useState<ViewsRecord>({
@@ -535,13 +548,18 @@ export function TileLayoutRoot(props: {
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
     setMounted(true)
+    setLastLayoutUpdate = setLastLayoutUpdate1
+    return () => {
+      setLastLayoutUpdate = null
+    }
   }, [])
 
   // persist the layout & views
   useEffect(() => {
     if (mounted) {
-      localStorage.setItem(group, JSON.stringify({ layoutData, views }))
+      localStorage.setItem(group, JSON.stringify({ layoutData, views, lastLayoutUpdate }))
     } else {
+      // restore the layout and views
       const data = localStorage.getItem(group)
       if (data) {
         const { layoutData, views } = JSON.parse(data)
@@ -560,7 +578,7 @@ export function TileLayoutRoot(props: {
         }
       }
     }
-  }, [mounted, layoutData, views])
+  }, [mounted, layoutData, views, lastLayoutUpdate])
 
   return (
     <>
@@ -615,17 +633,24 @@ export function TileLayoutRoot(props: {
                    })
                  })
                case 'set-view':
-                 props.requireCardView({ id: tid }).then(View => {
+                 return props.requireCardView({ id: tid }).then(View => {
                    return setViews({
                      ...views,
                      [tid]: View
                    })
                  })
+               case 'remove-view':
+                 return setViews((v) => {
+                   delete v[tid]
+                   return { ...v }
+                 })
                default:
              }
            }}
       >
-        <TileLayout group={group} depth={0} index={0} views={views} {...layoutData}/>
+        <TileLayout group={group} depth={0} index={0}
+                    views={views} viewPlaceholder={props.viewPlaceholder}
+                    {...layoutData}/>
       </div>
     </>
   )
