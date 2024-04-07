@@ -7,6 +7,8 @@ export interface ICardViewConstructor {
   new(tile: Partial<TileLayoutAttrs>, opts?: any): ICardView
 
   onBeforeAddView?(tile: Partial<TileLayoutAttrs>): Promise<any>
+
+  onEmptyPlaceholderDrop?(e: any): Promise<boolean | {}>
 }
 
 export interface ICardView {

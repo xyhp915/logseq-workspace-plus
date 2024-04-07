@@ -11,7 +11,7 @@ import { EmptyPlaceholder } from './cards/EmptyPlaceholder'
 import { ImageCard } from './cards/Image'
 
 export type Span = number
-export type ViewsRecord = Record<CardID, ICardView | FunctionComponent<any>>
+export type ViewsRecord = Record<CardID, ICardView | FC<any>>
 export type TileLayoutAttrs = {
   group: string,
   depth: number,
@@ -58,7 +58,9 @@ export function TileLayout(attrs: TileLayoutAttrs) {
           <View tid={id} tkey={tkey}/>
         </div>) :
         (<div className={'wp-tile-layout-view-placeholder'}>
-          <EmptyPlaceholder/>
+          <EmptyPlaceholder
+            tileLayout={attrs}
+            cardsViewRegistry={cardsViewRegistry}/>
         </div>))}
 
       {!childrenLen && (
@@ -527,10 +529,28 @@ function createADemoView(tkey: string) {
   }
 }
 
-let setLastLayoutUpdate: Function = null
+let _setLastLayoutUpdate = null
 
 export function persistLayoutAndViewState() {
-  setLastLayoutUpdate?.(Date.now())
+  _setLastLayoutUpdate?.(Date.now())
+}
+
+let _setViews = null
+
+export function applyCardViewInTile(
+  tid: string,
+  view: string | ICardViewConstructor,
+  opts?: any
+) {
+  const ViewCtor = typeof view === 'string' ? getCardViewCtorFromRegistry(view) : view
+  if (!ViewCtor) return
+
+  _setViews((v: ViewsRecord) => {
+    return {
+      ...v,
+      [tid]: new ViewCtor({ id: tid }, opts)
+    }
+  })
 }
 
 export function TileLayoutRoot(props: {
@@ -548,9 +568,11 @@ export function TileLayoutRoot(props: {
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
     setMounted(true)
-    setLastLayoutUpdate = setLastLayoutUpdate1
+    _setLastLayoutUpdate = setLastLayoutUpdate1
+    _setViews = setViews
     return () => {
-      setLastLayoutUpdate = null
+      _setLastLayoutUpdate = null
+      _setViews = null
     }
   }, [])
 

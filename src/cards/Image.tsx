@@ -1,4 +1,4 @@
-import { TileLayoutAttrs } from '../Layout'
+import { persistLayoutAndViewState, TileLayoutAttrs } from '../Layout'
 import { ICardView } from './shared'
 import { useEffect, useState } from 'react'
 
@@ -27,6 +27,7 @@ export class ImageCard implements ICardView {
       }
 
       this._opts.url = url1
+      persistLayoutAndViewState()
     }, [url1])
 
     return (
@@ -57,6 +58,28 @@ export class ImageCard implements ICardView {
       title: this.title,
       tileLayout: this.tileLayout,
       ...this._opts
+    }
+  }
+
+  static async onEmptyPlaceholderDrop(e: any) {
+    let items = e.dataTransfer?.items
+    if (!items?.length) return
+
+    const uris = await Promise.all(Array.from(items).map((it: DataTransferItem) => {
+      return new Promise<string | undefined>((resolve) => {
+        if (it.kind === 'string' && it.type === 'text/uri-list') {
+          return it.getAsString(s => resolve(s))
+        } else {
+          resolve(undefined)
+        }
+      })
+    }))
+
+    const validUrl = uris?.find((u) => (!!u && u.startsWith('http')))
+
+    if (validUrl) {
+      // as opts
+      return { url: validUrl }
     }
   }
 }

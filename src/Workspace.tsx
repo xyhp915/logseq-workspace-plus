@@ -10,7 +10,7 @@ export function initTestCustomRoute() {
       render: () => {
         return (
           <TileLayoutRoot requireCardView={async (t) => {
-            const cardID = ['HiCard', 'ImageCard', 'EditorCard', 'YoutubeCard'][Math.floor(Math.random() * 3)]
+            const cardID = ['HiCard', 'ImageCard', 'EditorCard', 'YoutubeCard'][Math.floor(Math.random() * 4)]
             const CardCtor = getCardViewCtorFromRegistry(cardID)
             if (cardID === 'EditorCard') {
               return new CardCtor(t, { name: ['charlie', 'test'][Math.floor(Math.random() * 2)] })

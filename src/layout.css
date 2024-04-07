@@ -1,11 +1,11 @@
 .wp-tile-layout-root {
-  @apply relative w-full h-[calc(100vh-48px)] border-2 border-amber-600;
+  @apply relative w-full h-[calc(100vh-48px)];
 
   background-color: var(--lx-gray-03);
 }
 
 .wp-tile-layout {
-  @apply border-amber-600 active:ring-purple-600 active:ring-2 ring-green-600;
+  @apply border-amber-600;
   @apply h-full relative;
   @apply grid relative focus:bg-green-200;
   @apply relative overflow-auto;
