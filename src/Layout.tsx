@@ -7,6 +7,8 @@ import { HiCard } from './cards/Hi'
 import { original } from 'immer'
 import { YoutubeCard } from './cards/Youtube'
 import { EditorCard } from './cards/Editor'
+import { EmptyPlaceholder } from './cards/EmptyPlaceholder'
+import { ImageCard } from './cards/Image'
 
 export type Span = number
 export type ViewsRecord = Record<CardID, ICardView | FunctionComponent<any>>
@@ -21,7 +23,6 @@ export type TileLayoutAttrs = {
   children?: Array<Span | Partial<TileLayoutAttrs>>,
   parent?: TileLayoutAttrs
   views?: ViewsRecord
-  viewPlaceholder?: FC<any>
 }
 
 export const gridN = 64
@@ -57,7 +58,7 @@ export function TileLayout(attrs: TileLayoutAttrs) {
           <View tid={id} tkey={tkey}/>
         </div>) :
         (<div className={'wp-tile-layout-view-placeholder'}>
-          {attrs.viewPlaceholder && <attrs.viewPlaceholder/>}
+          <EmptyPlaceholder/>
         </div>))}
 
       {!childrenLen && (
@@ -97,7 +98,6 @@ export function TileLayout(attrs: TileLayoutAttrs) {
           props.children = (child as TileLayoutAttrs).children
           props.parent = { ...attrs, direction }
           props.views = attrs.views
-          props.viewPlaceholder = attrs.viewPlaceholder
 
           childrenSpanAcc += props.span
 
@@ -504,6 +504,7 @@ const cardsViewRegistry = new Map<CardID, ICardViewConstructor>()
 cardsViewRegistry.set(HiCard.name, HiCard)
 cardsViewRegistry.set(YoutubeCard.name, YoutubeCard)
 cardsViewRegistry.set(EditorCard.name, EditorCard)
+cardsViewRegistry.set(ImageCard.name, ImageCard)
 
 export const getCardViewCtorFromRegistry = (id: CardID) => cardsViewRegistry.get(id)
 export const removeCardViewFromRegistry = (id: CardID) => cardsViewRegistry.delete(id)
@@ -534,7 +535,6 @@ export function persistLayoutAndViewState() {
 
 export function TileLayoutRoot(props: {
   requireCardView: (t: Partial<TileLayoutAttrs>) => Promise<ICardView | FC<any>>
-  viewPlaceholder?: FC<any>
 }) {
   const group = 'lsp-ws-1'
   const [layoutData, setLayoutData] = useImmer<Partial<TileLayoutAttrs>>(inflateTileData({}))
@@ -648,9 +648,7 @@ export function TileLayoutRoot(props: {
              }
            }}
       >
-        <TileLayout group={group} depth={0} index={0}
-                    views={views} viewPlaceholder={props.viewPlaceholder}
-                    {...layoutData}/>
+        <TileLayout group={group} depth={0} index={0} views={views} {...layoutData}/>
       </div>
     </>
   )

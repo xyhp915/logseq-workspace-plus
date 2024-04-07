@@ -22,7 +22,7 @@
 }
 
 .wp-tile-layout-view-placeholder {
-  @apply h-full w-full;
+  @apply h-full w-full flex;
 }
 .wp-tile-layout.as-col {
   > div.wp-tile-layout {

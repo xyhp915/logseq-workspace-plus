@@ -7,12 +7,8 @@ function Playground() {
   return (
     <div className={'relative'}>
       <TileLayoutRoot
-        viewPlaceholder={() => {
-          return <div className={'flex items-center justify-center w-full h-full text-2xl text-gray-400'}>No card
-            selected</div>
-        }}
         requireCardView={async (tile) => {
-          const cardID = ['HiCard', 'YoutubeCard'][Math.floor(Math.random() * 2)]
+          const cardID = ['HiCard', 'YoutubeCard', 'ImageCard'][Math.floor(Math.random() * 3)]
           const CardViewCtor = getCardViewCtorFromRegistry(cardID)
           if (!CardViewCtor) {
             throw new Error(`${cardID} not registered!`)
