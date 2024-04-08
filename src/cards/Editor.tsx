@@ -26,7 +26,7 @@ export class EditorCard implements ICardView {
         <LSUI.CardHeader>
           <LSUI.CardTitle>
             <a onClick={async () => {
-              const b = await logseq.Editor.getPage('charlie')
+              const b = await logseq.Editor.getPage(name)
               logseq.Editor.openInRightSidebar(b.uuid)
             }}>
               [[{name}]]

@@ -1,6 +1,6 @@
 import './layout.css'
 import { useImmer } from 'use-immer'
-import { FC, FunctionComponent, useEffect, useState } from 'react'
+import { FC, FunctionComponent, useEffect, useRef, useState } from 'react'
 import uniqid from 'uniqid'
 import { CardID, ICardView, ICardViewConstructor } from './cards/shared'
 import { HiCard } from './cards/Hi'
@@ -144,6 +144,9 @@ function resizeTilePrevSibling(
   draftData: any,
   step = 1
 ) {
+  // do not resize the only child
+  if (refChildren?.length === 1) return draftData
+
   const valueRef = refChildren[idx] as RawTileDataProxy
   const valueLeft = refChildren[idx - 1]
   if (valueLeft && isNumber(valueLeft)) refChildren[idx - 1] = { span: valueLeft as number }
@@ -169,7 +172,9 @@ export function resizeTileLeft(tkey: string, draftData: any, step: number = 1) {
 
   if (isInRows) {
     const parentTkey = parseParentTkey(tkey)
-    if (!parentTkey) return
+    if (!parentTkey || isRootTkey(parentTkey)) return
+    const [_, parentRefChildren] = parseTileDataWithTkey(parentTkey, draftData)
+    if (parentRefChildren?.length === 1) return
     return resizeTileLeft(parentTkey, draftData, step)
   }
 
@@ -186,6 +191,9 @@ function resizeTileNextSibling(
   draftData: any,
   step = 1
 ) {
+  // do not resize the only child
+  if (refChildren?.length === 1) return draftData
+
   const valueRef = refChildren[idx] as RawTileDataProxy
   const valueLeft = refChildren[idx - 1]
   if (valueLeft && isNumber(valueLeft)) refChildren[idx - 1] = { span: valueLeft as number }
@@ -211,7 +219,9 @@ export function resizeTileRight(tkey: string, draftData: any, step: number = 1) 
 
   if (isInRows) {
     const parentTkey = parseParentTkey(tkey)
-    if (!parentTkey) return
+    if (!parentTkey || isRootTkey(parentTkey)) return
+    const [_, parentRefChildren] = parseTileDataWithTkey(parentTkey, draftData)
+    if (parentRefChildren?.length === 1) return
     return resizeTileRight(parentTkey, draftData, step)
   }
 
@@ -229,6 +239,8 @@ export function resizeTileUp(tkey: string, draftData: any, step: number = 1) {
   if (isInCols) {
     const parentTkey = parseParentTkey(tkey)
     if (isRootTkey(parentTkey)) return
+    const [_, parentRefChildren] = parseTileDataWithTkey(parentTkey, draftData)
+    if (parentRefChildren?.length === 1) return
     return resizeTileUp(parentTkey, draftData, step)
   }
 
@@ -245,7 +257,9 @@ export function resizeTileDown(tkey: string, draftData: any) {
 
   if (isInCols) {
     const parentTkey = parseParentTkey(tkey)
-    if (isRootTkey(parentTkey)) return
+    if (!parentTkey || isRootTkey(parentTkey)) return
+    const [_, parentRefChildren] = parseTileDataWithTkey(parentTkey, draftData)
+    if (parentRefChildren?.length === 1) return
     return resizeTileDown(parentTkey, draftData)
   }
 
@@ -256,16 +270,17 @@ export function resizeTileDown(tkey: string, draftData: any) {
     draftData)
 }
 
-export function splitVertical(tkey: string, draftData: any) {
+export function splitVertical(tkey: string, draftData: any, callback?: Function) {
   const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   if (isNumber(value)) refChildren[idx] = { span: value, id: uniqid() }
   const valueRef = !refChildren ? value : refChildren[idx]
   const spanId = valueRef.id
+  const newSpanId = uniqid()
 
   if (!_refParent || _refParent?.direction === 'row') {
     if (!_refParent) valueRef.direction = 'col'
     valueRef.id = uniqid()
-    valueRef.children = [{ span: gridN / 2, id: spanId }, { span: gridN / 2, id: uniqid() }]
+    valueRef.children = [{ span: gridN / 2, id: spanId }, { span: gridN / 2, id: newSpanId }]
   } else {
     const spanVal = isFlexibleSpan(valueRef.span) ? (
       refChildren?.length ? (gridN - (refChildren.reduce((a, v) => {
@@ -277,22 +292,25 @@ export function splitVertical(tkey: string, draftData: any) {
     const span2 = spanVal - span1
 
     valueRef.span = span1
-    refChildren[idx + 1] = { span: span2, id: uniqid() }
+    refChildren[idx + 1] = { span: span2, id: newSpanId }
   }
+
+  callback?.(newSpanId)
 
   return draftData
 }
 
-export function splitHorizontal(tkey: string, draftData: any) {
+export function splitHorizontal(tkey: string, draftData: any, callback?: Function) {
   const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   if (isNumber(value)) refChildren[idx] = { span: value, id: uniqid() }
   const valueRef = !refChildren ? value : refChildren[idx]
   const spanId = valueRef.id
+  const newSpanId = uniqid()
 
   if (_refParent?.direction !== 'row') {
     valueRef.direction = 'row'
     valueRef.id = uniqid()
-    valueRef.children = [{ span: gridN / 2, id: spanId }, { span: gridN / 2, id: uniqid() }]
+    valueRef.children = [{ span: gridN / 2, id: spanId }, { span: gridN / 2, id: newSpanId }]
   } else {
     const spanVal = isFlexibleSpan(valueRef.span) ? (
       refChildren?.length ? (gridN - (refChildren.reduce((a, v) => {
@@ -304,8 +322,10 @@ export function splitHorizontal(tkey: string, draftData: any) {
     const span2 = spanVal - span1
 
     valueRef.span = span1
-    refChildren[idx + 1] = { span: span2, id: uniqid() }
+    refChildren[idx + 1] = { span: span2, id: newSpanId }
   }
+
+  callback?.(newSpanId)
 
   return draftData
 }
@@ -361,135 +381,220 @@ function MovementObserver(
     group: string,
     views: ViewsRecord,
     layoutData: Partial<TileLayoutAttrs>,
-    setLayoutData: Function
+    setLayoutData: Function,
+    ops: { doRemove: Function, doSplitV: Function, doSplitH: Function }
   }
 ) {
-  const { views, layoutData, setLayoutData } = props
+  const { views, layoutData, setLayoutData, ops } = props
+  const lastFocusTidRef = useRef(null)
+  const [isKeyLeading, setIsKeyLeading] = useState(false)
   const doc = top.document
 
-  useEffect(() => {
-    const groupContainer = doc.getElementById(`lsp-wp-${props.group}`)
-    const doFocus = (tid: string) => {
+  const doFocus = (tid: string, delay = 0) => {
+    const fn = () => {
       const tile: HTMLElement = doc.getElementById(tid)
-      if (tile) {
-        const view = props.views?.[tid] as ICardView
-        tile.focus()
-        view?.onFocus(tile)
+      if (!tile) return
+      const view = props.views?.[tid] as ICardView
+      tile.focus()
+      view?.onFocus(tile)
+      lastFocusTidRef.current = tid
+    }
+
+    if (delay > 0) {
+      setTimeout(fn, delay)
+    } else {
+      fn()
+    }
+  }
+
+  const doMove = (
+    tkey: string,
+    arrowDirection: string,
+    opts: { isResizeFlag: boolean, isFocusFlag: boolean } = { isResizeFlag: false, isFocusFlag: true }
+  ) => {
+    const { isFocusFlag, isResizeFlag } = opts
+
+    const getPrevClosestTile = (tkey: string, direction: string = 'col') => {
+      const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, props.layoutData)
+
+      // root
+      if (isRootTkey(tkey)) return
+
+      const isStopDirection = (_refParent?.direction || 'col') === direction
+      const prevSiblingRef = refChildren[idx - 1]
+
+      if (!isStopDirection || !prevSiblingRef) {
+        return getPrevClosestTile(parseParentTkey(tkey), direction)
+      }
+
+      if (prevSiblingRef) {
+        const pickValidTile = (tile: any) => {
+          if (!tile.children?.length) {
+            return tile
+          }
+
+          // TODO: root original index
+          return pickValidTile(tile.children[0])
+        }
+
+        return pickValidTile(prevSiblingRef)
       }
     }
 
-    const moveHandler = (e: KeyboardEvent) => {
+    const getNextClosestTile = (tkey: string, direction: string = 'col') => {
+      const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, props.layoutData)
+
+      // root
+      if (!tkey || tkey === '0') return
+
+      const isStopDirection = (_refParent?.direction || 'col') === direction
+      const nextSiblingRef = refChildren[idx + 1]
+
+      if (!isStopDirection || !nextSiblingRef) {
+        return getNextClosestTile(parseParentTkey(tkey), direction)
+      }
+
+      if (nextSiblingRef) {
+        const pickValidTile = (tile: any) => {
+          if (!tile.children?.length) {
+            return tile
+          }
+
+          // TODO: root original index
+          return pickValidTile(tile.children[0])
+        }
+
+        return pickValidTile(nextSiblingRef)
+      }
+    }
+
+    let tile = null
+
+    switch (arrowDirection) {
+      case 'ArrowLeft':
+        if (isResizeFlag) {
+          return setLayoutData(draft => {
+            return resizeTileLeft(tkey, draft)
+          })
+        }
+
+        if (isFocusFlag) {
+          tile = getPrevClosestTile(tkey, 'col')
+        }
+        break
+      case 'ArrowRight':
+        if (isResizeFlag) {
+          return setLayoutData(draft => {
+            return resizeTileRight(tkey, draft)
+          })
+        }
+
+        if (isFocusFlag) {
+          tile = getNextClosestTile(tkey, 'col')
+        }
+        break
+      case 'ArrowUp':
+        if (isResizeFlag) {
+          return setLayoutData(draft => {
+            return resizeTileUp(tkey, draft)
+          })
+        }
+
+        if (isFocusFlag) {
+          tile = getPrevClosestTile(tkey, 'row')
+        }
+        break
+      case 'ArrowDown':
+        if (isResizeFlag) {
+          return setLayoutData(draft => {
+            return resizeTileDown(tkey, draft)
+          })
+        }
+
+        if (isFocusFlag) {
+          tile = getNextClosestTile(tkey, 'row')
+        }
+        break
+      default:
+    }
+
+    tile && doFocus(tile.id)
+  }
+
+  // leading key handler & restore focus
+  useEffect(() => {
+    const gMoveHandler = (e: KeyboardEvent) => {
+      const tileContainer = doc.activeElement?.closest('.wp-tile-layout')
+      if (tileContainer) return
+
+      const isDirectionKey = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)
+      if (isDirectionKey && lastFocusTidRef.current) {
+        return doFocus(lastFocusTidRef.current)
+      }
+    }
+
+    const gLeadingHandler = (e: KeyboardEvent) => {
       const tileContainer = doc.activeElement?.closest('.wp-tile-layout')
       if (!tileContainer) return
 
-      const getPrevClosestTile = (tkey: string, direction: string = 'col') => {
-        const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, props.layoutData)
-
-        // root
-        if (!tkey || tkey === '0') return
-
-        const isStopDirection = (_refParent?.direction || 'col') === direction
-        const prevSiblingRef = refChildren[idx - 1]
-
-        if (!isStopDirection || !prevSiblingRef) {
-          return getPrevClosestTile(parseParentTkey(tkey), direction)
+      if (isKeyLeading) {
+        const moveOpts = { isResizeFlag: e.ctrlKey, isFocusFlag: !e.ctrlKey }
+        const tkey = tileContainer.getAttribute('data-key')
+        switch (e.key) {
+          case 'h':
+            return doMove(tkey, 'ArrowLeft', moveOpts)
+          case 'j':
+            return doMove(tkey, 'ArrowDown', moveOpts)
+          case 'k':
+            return doMove(tkey, 'ArrowUp', moveOpts)
+          case 'l':
+            return doMove(tkey, 'ArrowRight', moveOpts)
+          case '=':
+            return ops.doSplitV(tkey, (tid: string) => doFocus(tid, 64))
+          case '-':
+            return ops.doSplitH(tkey, (tid: string) => doFocus(tid, 64))
+          case 'x':
+            return ops.doRemove(tkey)
         }
 
-        if (prevSiblingRef) {
-          const pickValidTile = (tile: any) => {
-            if (!tile.children?.length) {
-              return tile
-            }
-
-            // TODO: root original index
-            return pickValidTile(tile.children[0])
-          }
-
-          return pickValidTile(prevSiblingRef)
-        }
+        return
       }
 
-      const getNextClosestTile = (tkey: string, direction: string = 'col') => {
-        const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, props.layoutData)
+      if (e.ctrlKey && e.code === 'KeyA') {
+        setIsKeyLeading(true)
+        setTimeout(() => {setIsKeyLeading(false)}, 2000)
+      }
+    }
 
-        // root
-        if (!tkey || tkey === '0') return
+    doc.addEventListener('keydown', gMoveHandler)
+    doc.addEventListener('keydown', gLeadingHandler)
+    return () => {
+      doc.removeEventListener('keydown', gMoveHandler)
+      doc.removeEventListener('keydown', gLeadingHandler)
+    }
+  }, [isKeyLeading])
 
-        const isStopDirection = (_refParent?.direction || 'col') === direction
-        const nextSiblingRef = refChildren[idx + 1]
+  // tile movement handler
+  useEffect(() => {
+    const groupContainer = doc.getElementById(`lsp-wp-${props.group}`)
 
-        if (!isStopDirection || !nextSiblingRef) {
-          return getNextClosestTile(parseParentTkey(tkey), direction)
+    const moveHandler = (e: KeyboardEvent) => {
+      const tileContainer = doc.activeElement?.closest('.wp-tile-layout')
+      if (!tileContainer) {
+        const isDirectionKey = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)
+        if (isDirectionKey && lastFocusTidRef.current) {
+          doFocus(lastFocusTidRef.current)
         }
 
-        if (nextSiblingRef) {
-          const pickValidTile = (tile: any) => {
-            if (!tile.children?.length) {
-              return tile
-            }
-
-            // TODO: root original index
-            return pickValidTile(tile.children[0])
-          }
-
-          return pickValidTile(nextSiblingRef)
-        }
+        return
       }
 
       const tkey = tileContainer.getAttribute('data-key')
-      const isCtrl = e.ctrlKey || e.metaKey
-      const isAlt = e.altKey
-      let tile = null
+      const isResizeFlag = e.ctrlKey || e.metaKey
+      const isFocusFlag = e.altKey
+      const arrowDirection = e.key
 
-      switch (e.key) {
-        case 'ArrowLeft':
-          if (isCtrl) {
-            return setLayoutData(draft => {
-              return resizeTileLeft(tkey, draft)
-            })
-          }
-
-          if (isAlt) {
-            tile = getPrevClosestTile(tkey, 'col')
-          }
-          break
-        case 'ArrowRight':
-          if (isCtrl) {
-            return setLayoutData(draft => {
-              return resizeTileRight(tkey, draft)
-            })
-          }
-
-          if (isAlt) {
-            tile = getNextClosestTile(tkey, 'col')
-          }
-          break
-        case 'ArrowUp':
-          if (isCtrl) {
-            return setLayoutData(draft => {
-              return resizeTileUp(tkey, draft)
-            })
-          }
-
-          if (isAlt) {
-            tile = getPrevClosestTile(tkey, 'row')
-          }
-          break
-        case 'ArrowDown':
-          if (isCtrl) {
-            return setLayoutData(draft => {
-              return resizeTileDown(tkey, draft)
-            })
-          }
-
-          if (isAlt) {
-            tile = getNextClosestTile(tkey, 'row')
-          }
-          break
-        default:
-      }
-
-      tile && doFocus(tile.id)
+      doMove(tkey, arrowDirection, { isResizeFlag, isFocusFlag })
     }
 
     groupContainer?.addEventListener('keydown', moveHandler)
@@ -602,13 +707,42 @@ export function TileLayoutRoot(props: {
     }
   }, [mounted, layoutData, views, lastLayoutUpdate])
 
+  // ops
+  const doRemove = (tkey: string) => {
+    setLayoutData(draft => {
+      return removeTile(tkey, draft, (t) => {
+        if (t?.id && views[t.id]) {
+          console.log('===>> remove:', t)
+          setViews((v) => {
+            delete v[t.id]
+            return v
+          })
+        }
+      })
+    })
+  }
+
+  const doSplitV = (tkey: string, callback?: Function) => {
+    setLayoutData(draft => {
+      return splitVertical(tkey, draft, callback)
+    })
+  }
+
+  const doSplitH = (tkey: string, callback?: Function) => {
+    setLayoutData(draft => {
+      return splitHorizontal(tkey, draft, callback)
+    })
+  }
+
   return (
     <>
       {mounted && <MovementObserver
         group={group}
         views={views}
         layoutData={layoutData}
-        setLayoutData={setLayoutData}/>}
+        setLayoutData={setLayoutData}
+        ops={{ doRemove, doSplitV, doSplitH }}
+      />}
       <div className={'wp-tile-layout-root'}
            id={`lsp-wp-${group}`}
            onClick={(e) => {
@@ -635,25 +769,11 @@ export function TileLayoutRoot(props: {
                    return resizeTileDown(tkey, draft)
                  })
                case 'split-v':
-                 return setLayoutData(draft => {
-                   return splitVertical(tkey, draft)
-                 })
+                 return doSplitV(tkey)
                case 'split-h':
-                 return setLayoutData(draft => {
-                   return splitHorizontal(tkey, draft)
-                 })
+                 return doSplitH(tkey)
                case 'remove':
-                 return setLayoutData(draft => {
-                   return removeTile(tkey, draft, (t) => {
-                     if (t?.id && views[t.id]) {
-                       console.log('===>> remove:', t)
-                       setViews((v) => {
-                         delete v[t.id]
-                         return v
-                       })
-                     }
-                   })
-                 })
+                 return doRemove(tkey)
                case 'set-view':
                  return props.requireCardView({ id: tid }).then(View => {
                    return setViews({
