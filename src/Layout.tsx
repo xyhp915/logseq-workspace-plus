@@ -39,6 +39,8 @@ export function TileLayout(attrs: TileLayoutAttrs) {
   const gridClass = !childrenLen ? 'flex' : `grid-${direction}s-${gridN}`
   const view = attrs.views?.[id] || attrs.views?.[tkey]
   const View = typeof view === 'function' ? view : view?.render
+  const doc = top.document
+  const elRef = useRef(null)
   let childrenSpanAcc = 0
 
   return (
@@ -46,7 +48,15 @@ export function TileLayout(attrs: TileLayoutAttrs) {
          data-group={group}
          data-key={tkey}
          id={id}
+         ref={elRef}
          tabIndex={0}
+         onKeyDown={(e) => {
+           if (e.key === 'Enter') {
+             if (doc.activeElement === elRef.current) {
+               (view as ICardView)?.onEnter(e.target)
+             }
+           }
+         }}
     >
       <b className={'wp-tile-label-text absolute'}>
         {tkey} ({span}, {id})
@@ -65,12 +75,6 @@ export function TileLayout(attrs: TileLayoutAttrs) {
 
       {!childrenLen && (
         <div className={'flex-1'}>
-          <div className={'grid grid-cols-2 grid-rows-2 absolute left-2 bottom-2'}>
-            <button data-action={'left'} className={'px-2 text-white'}>⬅️</button>
-            <button data-action={'right'} className={'px-2 text-white'}>➡️</button>
-            <button data-action={'up'} className={'px-2 text-white'}>⬆️</button>
-            <button data-action={'down'} className={'px-2 text-white'}>⬇️</button>
-          </div>
           <div className={'flex items-center absolute bottom-2 right-4'}>
             <button data-action={'split-v'} className={'px-2 bg-green-600 text-white mr-1 rounded'}>❙</button>
             <button data-action={'split-h'} className={'px-1 bg-green-600 text-white ml-1 rounded'}>━</button>
@@ -93,7 +97,7 @@ export function TileLayout(attrs: TileLayoutAttrs) {
             props = { ...child, ...props }
           }
 
-          if (typeof props.span !== 'number' || props.span < 0) {
+          if (isFlexibleSpan(props.span)) {
             props.span = gridN - childrenSpanAcc
           }
 

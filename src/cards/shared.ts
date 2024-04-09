@@ -22,6 +22,8 @@ export interface ICardView {
   // hooks
   onFocus?(e: any): void;
 
+  onEnter?(e: any): void;
+
   onBlur?(e: any): void;
 
   // for serialization to persist the card
