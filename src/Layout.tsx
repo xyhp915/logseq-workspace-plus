@@ -527,18 +527,16 @@ function MovementObserver(
 
   // leading key handler & restore focus
   useEffect(() => {
-    const gMoveHandler = (e: KeyboardEvent) => {
-      const tileContainer = doc.activeElement?.closest('.wp-tile-layout')
-      if (tileContainer) return
-
-      const isDirectionKey = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)
-      if (isDirectionKey && lastFocusTidRef.current) {
-        return doFocus(lastFocusTidRef.current)
-      }
-    }
-
     const gLeadingHandler = (e: KeyboardEvent) => {
-      const tileContainer = doc.activeElement?.closest('.wp-tile-layout')
+      let tileContainer = doc.activeElement?.closest('.wp-tile-layout')
+
+      if (!tileContainer) {
+        // TODO: infer the latest tile container
+        if (lastFocusTidRef.current) {
+          tileContainer = doc.getElementById(lastFocusTidRef.current)
+        }
+      }
+
       if (!tileContainer) return
 
       if (isKeyLeading) {
@@ -566,14 +564,12 @@ function MovementObserver(
 
       if (e.ctrlKey && e.code === 'KeyA') {
         setIsKeyLeading(true)
-        setTimeout(() => {setIsKeyLeading(false)}, 2000)
+        setTimeout(() => {setIsKeyLeading(false)}, 1000)
       }
     }
 
-    doc.addEventListener('keydown', gMoveHandler)
     doc.addEventListener('keydown', gLeadingHandler)
     return () => {
-      doc.removeEventListener('keydown', gMoveHandler)
       doc.removeEventListener('keydown', gLeadingHandler)
     }
   }, [isKeyLeading])
