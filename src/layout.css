@@ -13,7 +13,7 @@
   background-color: var(--lx-gray-01);
 
   &:focus, &:focus-within {
-    background-color: var(--lx-gray-02);
+    /*background-color: var(--lx-gray-02);*/
   }
 }
 

@@ -12,11 +12,9 @@ export function initTestCustomRoute() {
         return (
           <TileLayoutRoot
             onRequireCardView={async (t, e) => {
-              const cardTypes = ['HiCard', 'ImageCard', 'EditorCard', 'YoutubeCard']
+              const cardTypes = ['HiCard', 'ImageCard', 'EditorCard', 'YoutubeCard', 'CalendarCard']
 
-              SHUI.popupShow(e.target, (p1) => {
-                p1 = toJs(p1)
-
+              SHUI.popupShow(e.target, (_p1) => {
                 return (
                   <div className={'p-3 w-60 flex gap-2 flex-wrap'}>
                     {cardTypes.map(it => {
@@ -57,14 +55,6 @@ export function initTestCustomRoute() {
                   </div>
                 )
               })
-
-              // const cardID = ['HiCard', 'ImageCard', 'EditorCard', 'YoutubeCard'][Math.floor(Math.random() * 4)]
-              // const CardCtor = getCardViewCtorFromRegistry(cardID)
-              // if (cardID === 'EditorCard') {
-              //   return new CardCtor(t, { name: ['charlie', 'test'][Math.floor(Math.random() * 2)] })
-              // }
-              //
-              // return new CardCtor(t)
             }}/>
         )
       }

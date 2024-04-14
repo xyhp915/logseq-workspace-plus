@@ -19,7 +19,8 @@ body[data-page="x-route"] {
 .wp-tile-layout-view {
   @apply h-full w-full overflow-auto;
 
-  &:focus-within {}
+  &:focus-within {
+  }
 }
 
 .wp-tile-layout {
@@ -31,5 +32,30 @@ body[data-page="x-route"] {
 .wp-tile-layout-toolbar {
   button {
     @apply opacity-80 hover:opacity-100 active:opacity-70;
+  }
+}
+
+.wp-tile-layout {
+  .wp-tile-layout-toolbar {
+    transition: background-color 0.2s;
+    transition-delay: 32ms;
+  }
+
+  &:focus {
+    .wp-tile-layout-toolbar {
+      background-color: var(--lx-gray-06);
+    }
+  }
+}
+
+.wp-tile-layout-view {
+  &:focus, &:focus-within {
+    & ~ .wp-tile-layout-toolbar {
+      background-color: var(--lx-gray-06);
+    }
+  }
+
+  .page {
+    @apply px-2;
   }
 }

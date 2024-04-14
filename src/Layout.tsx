@@ -10,6 +10,7 @@ import { EditorCard } from './cards/Editor'
 import { EmptyPlaceholder } from './cards/EmptyPlaceholder'
 import { ImageCard } from './cards/Image'
 import { LSUI, SHUI } from './utils'
+import { CalendarCard } from './cards/Calendar'
 
 export type Span = number
 export type ViewsRecord = Record<CardID, ICardView | FC<any>>
@@ -51,7 +52,7 @@ export function TileLayout(attrs: TileLayoutAttrs) {
          id={id}
          ref={elRef}
          tabIndex={0}
-         onKeyDown={(e) => {
+         onKeyUp={(e) => {
            if (e.key === 'Enter') {
              if (doc.activeElement === elRef.current) {
                (view as ICardView)?.onEnter(e.target)
@@ -150,6 +151,8 @@ const isObject = (obj: any) => { return typeof obj === 'object' && obj !== null 
 const isFlexibleSpan = (s: any) => (!s || s === FlexSpan || s.span === FlexSpan || (isObject(s) && s.span == undefined))
 const isRootTkey = (s: string) => s === '0' || !s
 const parseParentTkey = (s: string) => s?.replace(/-\d+$/, '')
+const parsePrevSiblingTkey = (s: string) => s?.replace(/-(\d+)$/, (s, p1) => `-${p1 - 1}`)
+const parseNextSiblingTkey = (s: string) => s?.replace(/-(\d+)$/, (s, p1) => `-${p1 + 1}`)
 
 export type RawTileData = number | ({ span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>)
 export type RawTileDataProxy = { span: number, children?: Array<RawTileData> } & Partial<TileLayoutAttrs>
@@ -351,7 +354,7 @@ export function splitHorizontal(tkey: string, draftData: any, callback?: Functio
   return draftData
 }
 
-export function removeTile(tkey: string, draftData: any, callback?: (v: any) => void) {
+export function removeTile(tkey: string, draftData: any, callback?: (v: any) => void, back?: boolean) {
   const [value, refChildren, _refParent, idx] = parseTileDataWithTkey(tkey, draftData)
   const prevSiblingRef = refChildren[idx - 1]
   const nextSiblingRef = refChildren[idx + 1]
@@ -371,11 +374,23 @@ export function removeTile(tkey: string, draftData: any, callback?: (v: any) => 
     return draftData
   }
 
-  callback?.apply(null, [original(value)])
+  if (!back) {
+    callback?.apply(null, [original(value)])
+  }
+
   refChildren.splice(idx, 1)
 
-  if (refChildren.length === 0) {
+  if (!back && refChildren.length === 0) {
     removeTile(parseParentTkey(tkey), draftData, callback)
+  } else if (refChildren.length === 1) { // back
+    const childTkey = parsePrevSiblingTkey(tkey)
+    const [childValue] = parseTileDataWithTkey(childTkey, draftData)
+    // TODO: deep nested children
+    if (childValue.children?.length < 2) {
+      const [parentValue] = parseTileDataWithTkey(parseParentTkey(tkey), draftData)
+      parentValue.id = refChildren[0].id
+      removeTile(childTkey, draftData, callback, true)
+    }
   }
 
   return draftData
@@ -416,8 +431,15 @@ function MovementObserver(
       const tile: HTMLElement = doc.getElementById(tid)
       if (!tile) return
       const view = props.views?.[tid] as ICardView
+
+      // trigger prev view blur
+      if (lastFocusTidRef.current && lastFocusTidRef.current !== tid) {
+        const prevView = props.views?.[lastFocusTidRef.current] as ICardView
+        prevView?.onBlur?.(tile)
+      }
+
       tile.focus()
-      view?.onFocus(tile)
+      view?.onFocus?.(tile)
       lastFocusTidRef.current = tid
     }
 
@@ -564,6 +586,10 @@ function MovementObserver(
       if (isKeyLeading) {
         const moveOpts = { isResizeFlag: e.ctrlKey, isFocusFlag: !e.ctrlKey }
         const tkey = tileContainer.getAttribute('data-key')
+
+        clearTimeout(isKeyLeading as NodeJS.Timeout)
+        setIsKeyLeading(false)
+
         switch (e.key) {
           case 'h':
             return doMove(tkey, 'ArrowLeft', moveOpts)
@@ -580,10 +606,6 @@ function MovementObserver(
           case 'd':
             return ops.doRemove(tkey)
         }
-
-        clearTimeout(isKeyLeading as NodeJS.Timeout)
-        setIsKeyLeading(false)
-        return
       }
 
       if (e.ctrlKey && e.code === 'KeyX') {
@@ -636,6 +658,7 @@ cardsViewRegistry.set(HiCard.name, HiCard)
 cardsViewRegistry.set(YoutubeCard.name, YoutubeCard)
 cardsViewRegistry.set(EditorCard.name, EditorCard)
 cardsViewRegistry.set(ImageCard.name, ImageCard)
+cardsViewRegistry.set(CalendarCard.name, CalendarCard)
 
 export const getCardViewCtorFromRegistry = (id: CardID) => cardsViewRegistry.get(id)
 export const removeCardViewFromRegistry = (id: CardID) => cardsViewRegistry.delete(id)

@@ -78,6 +78,11 @@ export class EditorCard implements ICardView {
     }
   }
 
+  onBlur(e: any) {
+    // @ts-ignore
+    hostSDKBaseAPIs.clear_selected_blocks()
+  }
+
   onEnter(e: any) {
     const hasSelectedBlocks = doc.querySelector('.ls-block.selected')
     if (hasSelectedBlocks) return
