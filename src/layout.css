@@ -5,19 +5,15 @@
 }
 
 .wp-tile-layout {
-  @apply border-amber-600;
-  @apply h-full relative;
-  @apply grid relative focus:bg-green-200;
-  @apply relative overflow-auto;
+  @apply h-full relative grid;
+  @apply relative overflow-auto outline-none;
 
+  border-width: 1px;
+  border-color: var(--lx-gray-06);
   background-color: var(--lx-gray-01);
 
   &:focus, &:focus-within {
-    background-color: var(--lx-gray-03);
-
-    > .wp-tile-layout-view {
-      border-color: var(--lx-accent-10);
-    }
+    background-color: var(--lx-gray-02);
   }
 }
 

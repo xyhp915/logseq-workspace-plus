@@ -11,7 +11,7 @@ export function EmptyPlaceholder(
   const { tileLayout, cardsViewRegistry } = props
 
   return (
-    <div className={'border border-dashed border-gray-300 m-6 flex flex-1 items-center justify-center'}
+    <div className={'flex flex-1 items-center justify-center'}
          onDragOver={(e) => {
            e.preventDefault()
          }}

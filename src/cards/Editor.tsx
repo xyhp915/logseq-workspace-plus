@@ -1,12 +1,17 @@
 import { ICardView } from './shared'
 import { LSUI } from '../utils'
-import React from 'react'
-import { TileLayoutAttrs } from '../Layout'
+import React, { useEffect, useState } from 'react'
+import { applyCardViewInTile, TileLayoutAttrs } from '../Layout'
 
 // @ts-ignore
 const Components = window.logseq?.Experiments?.Components
 const hostSDKBaseAPIs = window.logseq?.Experiments?.ensureHostScope().logseq.api
 const doc = top.document
+
+const isUUIDStr = (s: string) => {
+  if (typeof s !== 'string') return
+  return /^[a-z,0-9-]{36}$/.test(s)
+}
 
 export class EditorCard implements ICardView {
   static name = 'EditorCard'
@@ -24,20 +29,41 @@ export class EditorCard implements ICardView {
 
   render(props: any) {
     const { name } = this._opts
+    const isBlock = isUUIDStr(name)
+    const [ready, setReady] = useState(!isBlock)
+
+    useEffect(() => {
+      if (ready) return
+      const rt = setTimeout(() => {
+        setReady(true)
+      }, 32)
+      return () => {
+        clearTimeout(rt)
+      }
+    }, [])
 
     return (
-      <LSUI.Card className={'m-2 w-full'}>
-        <LSUI.CardContent>
-          <Components.Editor page={name} onEscapeEditing={(blockId: string, isEsc: boolean) => {
-            this.lastEditBlockId = blockId
-            // TODO: handle escape editing
-            if (isEsc) {
-              const layoutEl = doc.getElementById(this._tileLayout.id)
-              layoutEl?.focus()
-            }
-          }}/>
-        </LSUI.CardContent>
-      </LSUI.Card>
+      <div className={'w-full px-2'}>
+        {ready ?
+          <Components.Editor
+            page={name}
+            includeUnlinkedRefs={false}
+            includeLinkedRefs={false}
+            onRedirectToPage={(name: string) => {
+              if (!name || name === this._opts.name) return
+              applyCardViewInTile(this._tileLayout.id, EditorCard.name, { name })
+            }}
+            onEscapeEditing={(blockId: string, isEsc: boolean) => {
+              this.lastEditBlockId = blockId
+              // TODO: handle escape editing
+              if (isEsc) {
+                const layoutEl = doc.getElementById(this._tileLayout.id)
+                layoutEl?.focus()
+              }
+            }}/> :
+          (<h2 className={'py-10 flex items-center w-full'}>Loading...</h2>)
+        }
+      </div>
     )
   }
 
@@ -56,6 +82,14 @@ export class EditorCard implements ICardView {
     const hasSelectedBlocks = doc.querySelector('.ls-block.selected')
     if (hasSelectedBlocks) return
     this.onFocus(e)
+  }
+
+  static async onEmptyPlaceholderDrop(e: any) {
+    const dt = e.dataTransfer as DataTransfer
+    const blockId = dt?.getData('block-uuid')
+    if (blockId) {
+      return { name: blockId }
+    }
   }
 
   set lastEditBlockId(value: string) {

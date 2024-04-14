@@ -9,6 +9,7 @@ import { YoutubeCard } from './cards/Youtube'
 import { EditorCard } from './cards/Editor'
 import { EmptyPlaceholder } from './cards/EmptyPlaceholder'
 import { ImageCard } from './cards/Image'
+import { LSUI, SHUI } from './utils'
 
 export type Span = number
 export type ViewsRecord = Record<CardID, ICardView | FC<any>>
@@ -58,10 +59,6 @@ export function TileLayout(attrs: TileLayoutAttrs) {
            }
          }}
     >
-      <b className={'wp-tile-label-text absolute'}>
-        {tkey} ({span}, {id})
-      </b>
-
       {/* card view */}
       {!childrenLen && (View ?
         (<div className={'wp-tile-layout-view'}>
@@ -74,15 +71,35 @@ export function TileLayout(attrs: TileLayoutAttrs) {
         </div>))}
 
       {!childrenLen && (
-        <div className={'flex-1'}>
-          <div className={'flex items-center absolute bottom-2 right-4'}>
-            <button data-action={'split-v'} className={'px-2 bg-green-600 text-white mr-1 rounded'}>❙</button>
-            <button data-action={'split-h'} className={'px-1 bg-green-600 text-white ml-1 rounded'}>━</button>
-            <button data-action={'remove'} className={'px-2 bg-red-600 text-white ml-1 rounded'}>Ⅹ</button>
-          </div>
-          <div className={'flex items-center absolute top-2 right-2'}>
-            {View && <button data-action={'remove-view'} className={'px-2 bg-red-500 text-white rounded'}>-</button>}
-            <button data-action={'set-view'} className={'px-2 bg-purple-600 text-white ml-1 rounded'}>+</button>
+        <div
+          className={'wp-tile-layout-toolbar absolute flex justify-between bg-secondary shadow w-full top-0 left-0 p-2 items-center'}>
+          <b className={'wp-tile-label-text'}>
+            {tkey} ({span}, {id})
+          </b>
+          <div className={'flex items-center gap-2'}>
+            {View && <button
+              data-action={'remove-view'}
+              className={'px-2 flex items-center'}>
+              <SHUI.TablerIcon name={'trash'}/>
+            </button>}
+            <button
+              data-action={'set-view'}
+              className={'px-2 flex items-center'}>
+              <SHUI.TablerIcon name={'circle-plus'}/>
+            </button>
+
+            <button data-action={'split-v'}
+                    className={'flex items-center mr-1'}>
+              <SHUI.TablerIcon name={'circle-half'}/>
+            </button>
+            <button data-action={'split-h'}
+                    className={'flex items-center mr-1'}>
+              <SHUI.TablerIcon name={'circle-half-vertical'}/>
+            </button>
+            <button data-action={'remove'}
+                    className={'mr-1 flex items-center text-red-700'}>
+              <SHUI.TablerIcon name={'x'}/>
+            </button>
           </div>
         </div>
       )}
@@ -391,7 +408,7 @@ function MovementObserver(
 ) {
   const { views, layoutData, setLayoutData, ops } = props
   const lastFocusTidRef = useRef(null)
-  const [isKeyLeading, setIsKeyLeading] = useState(false)
+  const [isKeyLeading, setIsKeyLeading] = useState<Boolean | NodeJS.Timeout>(false)
   const doc = top.document
 
   const doFocus = (tid: string, delay = 0) => {
@@ -534,6 +551,11 @@ function MovementObserver(
         // TODO: infer the latest tile container
         if (lastFocusTidRef.current) {
           tileContainer = doc.getElementById(lastFocusTidRef.current)
+        } else {
+          const selectedBlock = doc.querySelector('.ls-block.selected')
+          if (selectedBlock) {
+            tileContainer = selectedBlock.closest('.wp-tile-layout')
+          }
         }
       }
 
@@ -555,16 +577,18 @@ function MovementObserver(
             return ops.doSplitV(tkey, (tid: string) => doFocus(tid, 64))
           case '-':
             return ops.doSplitH(tkey, (tid: string) => doFocus(tid, 64))
-          case 'x':
+          case 'd':
             return ops.doRemove(tkey)
         }
 
+        clearTimeout(isKeyLeading as NodeJS.Timeout)
+        setIsKeyLeading(false)
         return
       }
 
-      if (e.ctrlKey && e.code === 'KeyA') {
-        setIsKeyLeading(true)
-        setTimeout(() => {setIsKeyLeading(false)}, 1000)
+      if (e.ctrlKey && e.code === 'KeyX') {
+        const leadingTimer = setTimeout(() => {setIsKeyLeading(false)}, 2000)
+        setIsKeyLeading(leadingTimer)
       }
     }
 
@@ -659,7 +683,7 @@ export function applyCardViewInTile(
 }
 
 export function TileLayoutRoot(props: {
-  requireCardView: (t: Partial<TileLayoutAttrs>) => Promise<ICardView | FC<any>>
+  onRequireCardView: (t: Partial<TileLayoutAttrs>, e?: any) => void
 }) {
   const group = 'lsp-ws-1'
   const [layoutData, setLayoutData] = useImmer<Partial<TileLayoutAttrs>>(inflateTileData({}))
@@ -746,7 +770,8 @@ export function TileLayoutRoot(props: {
       <div className={'wp-tile-layout-root'}
            id={`lsp-wp-${group}`}
            onClick={(e) => {
-             const target = e.target as HTMLElement
+             const target = (e.target as HTMLElement).closest('button')
+             if (!target) return
              const action = target.getAttribute('data-action')
              const tkey = target.closest('.wp-tile-layout')?.getAttribute('data-key')
              const tid = target.closest('.wp-tile-layout')?.id
@@ -775,12 +800,7 @@ export function TileLayoutRoot(props: {
                case 'remove':
                  return doRemove(tkey)
                case 'set-view':
-                 return props.requireCardView({ id: tid }).then(View => {
-                   return setViews({
-                     ...views,
-                     [tid]: View
-                   })
-                 })
+                 return props.onRequireCardView({ id: tid }, e)
                case 'remove-view':
                  return setViews((v) => {
                    delete v[tid]

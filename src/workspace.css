@@ -19,16 +19,17 @@ body[data-page="x-route"] {
 .wp-tile-layout-view {
   @apply h-full w-full overflow-auto;
 
-  border-width: 4px;
-  border-color: transparent;
-
-  &:focus-within {
-    border-color: var(--lx-accent-10);
-  }
+  &:focus-within {}
 }
 
 .wp-tile-layout {
   &.flex {
-    @apply !flex;
+    @apply !flex pt-[40px];
+  }
+}
+
+.wp-tile-layout-toolbar {
+  button {
+    @apply opacity-80 hover:opacity-100 active:opacity-70;
   }
 }
