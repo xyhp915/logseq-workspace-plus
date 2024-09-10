@@ -4,6 +4,7 @@ import { applyCardViewInTile, getCardViewCtorFromRegistry, TileLayoutRoot } from
 import { LSUI, SHUI, toClj, toJs } from './utils'
 
 export function initTestCustomRoute() {
+  // @ts-ignore
   logseq.Experiments.registerRouteRenderer(
     'x-route',
     {

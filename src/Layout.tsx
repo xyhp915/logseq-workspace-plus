@@ -423,7 +423,7 @@ function MovementObserver(
 ) {
   const { views, layoutData, setLayoutData, ops } = props
   const lastFocusTidRef = useRef(null)
-  const [isKeyLeading, setIsKeyLeading] = useState<Boolean | NodeJS.Timeout>(false)
+  const [isKeyLeading, setIsKeyLeading] = useState<any>(false)
   const doc = top.document
 
   const doFocus = (tid: string, delay = 0) => {
@@ -587,7 +587,7 @@ function MovementObserver(
         const moveOpts = { isResizeFlag: e.ctrlKey, isFocusFlag: !e.ctrlKey }
         const tkey = tileContainer.getAttribute('data-key')
 
-        clearTimeout(isKeyLeading as NodeJS.Timeout)
+        clearTimeout(isKeyLeading)
         setIsKeyLeading(false)
 
         switch (e.key) {
