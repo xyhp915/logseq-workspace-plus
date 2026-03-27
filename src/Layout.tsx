@@ -398,23 +398,36 @@ export function removeTile(tkey: string, draftData: any, callback?: (v: any) => 
 
 // ─── tmux-inspired layout algorithms ────────────────────────────────────────
 //
-// Comparison of approaches
-// ────────────────────────
-// Current (span-based):
-//   • Each pane carries an integer span (out of gridN = 64).
-//   • After multiple split / remove operations spans drift: 16, 22, 7, 19 …
-//   • There is no built-in way to re-balance or apply a whole-workspace preset.
+// 新算法优势整理
+// ──────────────
+// 当前实现（基于 span）:
+//   • 每个 pane 都带一个整数 span（总网格 gridN = 64）。
+//   • 多次 split / remove / resize 之后，span 会逐渐漂移成 16、22、7、19…
+//   • 只能做局部调整，缺少“整体重新均衡”与“一键套用预设布局”的能力。
 //
-// tmux approach:
-//   • layout_spread_cells  – redistributes available space evenly across all
-//     siblings at every level of the tree after each modification.
-//   • Five built-in presets  (even-horizontal, even-vertical, main-horizontal,
-//     main-vertical, tiled) that completely restructure the pane tree while
-//     preserving each leaf pane's identity (id).
+// 这里借鉴的 tmux 思路:
+//   • layout_spread_cells：在每一层把可用空间重新均匀分配给所有兄弟节点，
+//     用来解决长期编辑后的比例失衡问题。
+//   • 五种经典预设布局：even-horizontal、even-vertical、main-horizontal、
+//     main-vertical、tiled，可以在保留叶子 pane 身份（id）的同时整体重排。
 //
-// The functions below bring these ideas to the span-based system.  They are
-// fully compatible with immer draft objects and the existing resize / split
-// APIs.
+// 相比旧方式，这套算法的优势是:
+//   • 更稳：可以把累计漂移的 span 拉回均衡状态。
+//   • 更快：常见布局可以直接切换，不必手工多次拖拽。
+//   • 更友好：接口表达的是“布局意图”，而不只是底层 span 编辑。
+//
+// 需要特别说明：tmux 本身并不是严格意义上的“二叉树布局系统”。
+//   • tmux 的内部布局节点可以维护一组 cell / pane，重点是“容器 + 方向 +
+//     空间分配”，并不要求每个非叶子节点只能有两个孩子。
+//   • 这个项目同样不直接照搬 tmux 的内部结构，而是继续沿用现有的
+//     direction + children + span 数据模型，因为它已经和当前渲染、拖拽、
+//     split / resize API 紧密耦合。
+//   • 也就是说，这里复用的是 tmux 的“布局算法思想”，不是它的底层数据结构：
+//     我们只引入“均衡分配”和“预设重排”，避免为了文档化的新能力去推翻现有树模型。
+//
+// The functions below bring these ideas to the existing span-based tree model.
+// They stay compatible with immer draft objects and the current resize / split
+// APIs instead of replacing the underlying data structure with tmux internals.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
