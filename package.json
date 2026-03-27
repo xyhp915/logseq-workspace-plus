@@ -37,6 +37,7 @@
     "autoprefixer": "^10.4.19",
     "console-browserify": "^1.2.0",
     "http-server": "^14.1.1",
+    "jsdom": "^29.0.1",
     "os-browserify": "^0.3.0",
     "parcel": "2.11.0",
     "postcss": "^8.4.38",

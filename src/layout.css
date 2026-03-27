@@ -1,7 +1,27 @@
 .wp-tile-layout-root {
-  @apply relative w-full h-[calc(100vh-48px)];
+  @apply relative w-full h-[calc(100vh-48px)] flex flex-col;
 
   background-color: var(--lx-gray-03);
+}
+
+.wp-layout-toolbar {
+  @apply flex items-center gap-1 px-2 py-1 flex-shrink-0;
+
+  background-color: var(--lx-gray-02, #f5f5f5);
+  border-bottom: 1px solid var(--lx-gray-06, #d4d4d4);
+}
+
+.wp-layout-preset-btn {
+  @apply px-2 py-0.5 rounded text-xs cursor-pointer select-none;
+
+  background-color: var(--lx-gray-04, #e5e5e5);
+  color: var(--lx-gray-12, #171717);
+  border: 1px solid var(--lx-gray-06, #d4d4d4);
+  transition: background-color 0.1s;
+
+  &:hover {
+    background-color: var(--lx-gray-05, #d4d4d4);
+  }
 }
 
 .wp-tile-layout {
